@@ -106,14 +106,6 @@ export function estimateDepth(lat, lng) {
   return { ft: Math.round(ft(est)), lo: Math.round(ft(L)), hi: Math.round(ft(U)) };
 }
 
-// Depth (m, negative) → styling + label
-function depthStyle(dm) {
-  const ft = Math.round(Math.abs(dm) * 3.28084);
-  const t = Math.min(1, Math.abs(dm) / 34);
-  const shade = Math.round(200 - t * 130);
-  return { ft, color: `rgb(40, ${shade * 0.75 + 40}, ${shade + 55})`, weight: ft > 90 ? 2.5 : 1.8 };
-}
-
 export default {
   id: 'map',
   render(root) {
@@ -180,17 +172,27 @@ export default {
     });
     updateDepthChip();
 
-    // --- bathymetry + shoreline overlays (best-effort) ---
+    // --- depth-shaded fishing chart (filled bathymetry) ---
+    // Band colors, shallow → deep. Filled in painter's order so deeper covers shallower.
+    const BAND = ['#9fd3ee', '#79bde4', '#54a3d6', '#3a86bf', '#2a689f', '#1f5185', '#1a4674', '#153a63'];
+    const labelLayer = L.layerGroup();
     fetch('data/kagawong-lake.geojson').then(r => r.ok ? r.json() : null).then(gj => {
       if (!gj) return;
       const poly = (gj.features ? gj.features[0] : gj).geometry;
       const rings = poly.type === 'Polygon' ? poly.coordinates : poly.coordinates[0];
       lakeRings = { outer: rings[0], holes: rings.slice(1) };
       updateDepthChip();
-      L.geoJSON(gj, { style: { color: '#3ecfb2', weight: 1.5, fill: false, opacity: 0.7 } }).addTo(map);
+      // 0-20 ft band = the whole lake, islands cut out automatically
+      L.geoJSON(gj, {
+        style: { color: '#2b7fb8', weight: 1.6, opacity: 0.9, fill: true, fillColor: BAND[0], fillOpacity: 0.55 },
+      }).addTo(map);
+      drawContours();
     }).catch(() => {});
+
+    let bathyGJ = null;
     fetch('data/kagawong-bathymetry.geojson').then(r => r.ok ? r.json() : null).then(gj => {
       if (!gj) return;
+      bathyGJ = gj;
       bathyRings = [];
       for (const f of gj.features) {
         const level = Math.abs(f.properties.DEPTH ?? f.properties.depth ?? 0);
@@ -198,17 +200,41 @@ export default {
         for (const coords of lines) bathyRings.push({ level, coords });
       }
       updateDepthChip();
-      L.geoJSON(gj, {
-        style: f => {
-          const s = depthStyle(f.properties.DEPTH ?? f.properties.depth ?? 0);
-          return { color: s.color, weight: s.weight, opacity: 0.9 };
-        },
-        onEachFeature: (f, layer) => {
-          const s = depthStyle(f.properties.DEPTH ?? f.properties.depth ?? 0);
-          layer.bindTooltip(`${s.ft} ft`, { sticky: true, className: 'depth-label', direction: 'top' });
-        },
-      }).addTo(map);
+      drawContours();
     }).catch(() => {});
+
+    // Draw once both the lake fill (paints first) and contours are loaded.
+    let contoursDrawn = false;
+    function drawContours() {
+      if (contoursDrawn || !bathyGJ || !lakeRings) return;
+      contoursDrawn = true;
+      const levels = [...new Set(bathyRings.map(r => r.level))].sort((a, b) => a - b);
+      const sorted = [...bathyRings].sort((a, b) => a.level - b.level);
+      for (const r of sorted) {
+        const ft = Math.round(r.level * 3.28084);
+        const band = BAND[Math.min(levels.indexOf(r.level) + 1, BAND.length - 1)];
+        const latlngs = r.coords.map(c => [c[1], c[0]]);
+        L.polygon(latlngs, {
+          color: '#1b4d77', weight: 1, opacity: 0.8,
+          fillColor: band, fillOpacity: 0.6, interactive: true,
+        }).bindTooltip(`deeper than ${ft} ft`, { sticky: true, className: 'depth-label', direction: 'top' })
+          .addTo(map);
+        // permanent label on the contour edge (skip the tiny deep-basin rings except the deepest)
+        if (r.coords.length >= 17) {
+          const v = r.coords[Math.floor(r.coords.length * 0.3)];
+          L.marker([v[1], v[0]], {
+            icon: L.divIcon({ className: 'depth-lab', html: String(ft), iconSize: [30, 14], iconAnchor: [15, 7] }),
+            interactive: false, keyboard: false,
+          }).addTo(labelLayer);
+        }
+      }
+      syncLabels();
+    }
+    const syncLabels = () => {
+      if (map.getZoom() >= 12) { if (!map.hasLayer(labelLayer)) labelLayer.addTo(map); }
+      else if (map.hasLayer(labelLayer)) map.removeLayer(labelLayer);
+    };
+    map.on('zoomend', syncLabels);
 
     // --- waypoints ---
     const markers = {};
