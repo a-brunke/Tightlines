@@ -140,6 +140,57 @@ export const DIY = [
   },
 
   {
+    id: 'walleye-harness',
+    name: 'Walleye Spinner Harness (Crawler Harness)',
+    level: 1,
+    time: '8 min per harness',
+    cost: '$1.20 per harness',
+    targets: 'Walleye (the Lake Kagawong staple), also perch and pike',
+    why: 'The spinner harness behind a bottom bouncer is the number one summer walleye presentation in Ontario, and store harnesses run $4 to $6 each while snagging bottom all day. Tie a dozen of your own in an evening, in exactly the blade and bead colours the lake is asking for.',
+    materials: [
+      { item: '15 lb fluorocarbon or mono leader material', qty: '48 in per harness' },
+      { item: 'Octopus (beak) hooks, size #2, short shank needle point (L1B style)', qty: '2' },
+      { item: 'Round or faceted beads, 4 to 5 mm: chartreuse, gold, orange, glow, pearlescent', qty: '5 or 6' },
+      { item: 'Quick-change clevis (swap blades without retying) or folded clevis size #1', qty: '1' },
+      { item: 'Colorado spinner blade #3 or #4: gold, copper, chartreuse, firetiger; hammered gold is the Ontario classic', qty: '1' },
+      { item: 'Optional: pill-style rig float to lift the bait off snaggy bottom', qty: '1' },
+      { item: 'Optional: size #7 barrel swivel for the rod end loop', qty: '1' },
+    ],
+    tools: ['Line clippers', 'Snell tyer (optional but makes step 1 fast)', 'Foam board or Tackle Buddy spools for storage'],
+    steps: [
+      {
+        title: 'Snell the trailing hook',
+        body: 'Cut 48 in of leader. Snell the first #2 octopus hook to the very end of the line (the snell knot is in the Knots section, and a $5 snell tyer makes it a 20 second job). The snell pulls the hook point up and in line for solid hooksets on light walleye bites.',
+      },
+      {
+        title: 'Snell the front hook',
+        body: 'Slide the second hook on and snell it 2.5 to 3 in above the first. That spacing fits a whole nightcrawler: front hook through the nose, back hook near the collar. For leech or minnow harnesses, skip this step and run a single hook.',
+      },
+      {
+        title: 'Thread the beads',
+        body: 'Slide on 5 or 6 beads above the front hook. Colour rules of thumb: chartreuse and gold in stained water, orange and copper on cloudy days, pearl and glow over deep fish. A single larger bead in the middle of the stack gives the classic look and protects the knot from the spinning clevis.',
+      },
+      {
+        title: 'Mount the blade on the clevis',
+        body: 'Put the blade on the clevis with the cupped (concave) face toward the hooks, so the blade rides convex-side-forward and spins on the slightest pull. Slide the clevis on above the beads. A quick-change clevis lets you swap from Colorado to Indiana to willowleaf on the water without retying, which is worth the extra 20 cents.',
+      },
+      {
+        title: 'Tie the top loop',
+        body: 'Measure 40 to 44 in from the trailing hook and tie a perfection loop or double-overhand loop (or a #7 barrel swivel) for the bottom bouncer snap. Trim the tag.',
+      },
+      {
+        title: 'Wrap and label',
+        body: 'Wind each finished harness around a foam board or harness spool and note the blade size and colour. A dozen harnesses in a zip bag weighs nothing and covers every colour situation the week can throw at you.',
+      },
+    ],
+    variations: [
+      'Slow death rig: a single Mustad 33862 slow death hook with half a crawler threaded on corkscrews seductively at 0.8 to 1.2 mph, deadly when fish swat at standard harnesses.',
+      'Willowleaf blade version runs with less lift and thump for clear water and faster trolling; deep cup Colorado maximizes vibration for stained water.',
+      'Glow bead and glow blade version for the 20 to 35 ft late-August fish and the last hour of light.',
+    ],
+  },
+
+  {
     id: 'inline-spinner',
     name: 'Inline Spinner',
     level: 1,
@@ -281,6 +332,46 @@ export const DIY = [
       'Clear water smallmouth: double willow (#3.5 and #4.5), white and silver skirt, 1/2 oz head, burned fast over boulders.',
       'Pike upgrade: replace the swivel split ring with a heavier #5 ring, add a 4 in white grub trailer, and fish it over weed edges.',
     ],
+  },
+
+  {
+    id: 'bottom-bouncer',
+    name: 'Bottom Bouncers',
+    level: 2,
+    time: '10 min each (plus pouring session)',
+    cost: '$0.90 per bouncer',
+    targets: 'Walleye (pairs with the spinner harness project)',
+    why: 'A bottom bouncer walks your harness along rock and gravel where Kagawong walleye live, and you will donate a few to the lake every week. Bought bouncers are $3 to $5; bent and poured at home they cost under a dollar.',
+    materials: [
+      { item: 'Bottom bouncer wire forms, 0.051 in stainless, pre-bent (or straight wire to bend your own)', qty: '1 per bouncer' },
+      { item: 'Lead for the weight: pour with a bottom bouncer mold in 1, 1.5 and 2 oz, or buy slip-on bouncer weights to skip pouring', qty: '1 to 2 oz per bouncer' },
+      { item: 'Size #7 barrel swivel or snap swivel for the harness attachment arm', qty: '1' },
+      { item: 'Powder paint, chartreuse or orange (optional, helps you track the rig and adds a target)', qty: 'a pinch' },
+    ],
+    tools: ['Round-nose pliers', 'Bottom bouncer mold + lead pot (only if pouring)', 'Side cutters'],
+    steps: [
+      {
+        title: 'Understand the shape',
+        body: 'A bottom bouncer is an L of wire: the long leg (10 to 12 in) carries the weight cylinder partway down and ticks bottom, the short arm (4 to 5 in) holds the harness. The line ties at the corner. The wire leg telegraphs bottom while keeping the harness riding clean above the rocks.',
+      },
+      {
+        title: 'Form the corner and arm',
+        body: 'With pre-bent forms this is done for you. Bending your own: make a 90 degree corner leaving the long leg below, then twist a small line-tie loop right at the corner with round-nose pliers, and finish the short arm with a wrapped loop holding the barrel swivel or snap for the harness.',
+      },
+      {
+        title: 'Add the weight',
+        body: 'Pouring: clamp the wire leg in the bottom bouncer mold and pour 1, 1.5 and 2 oz versions (rule of thumb: 1 oz per 10 ft of depth you plan to fish). Not pouring: pinch a slip-on bouncer weight onto the leg at about one third of the way down and crimp it firm.',
+      },
+      {
+        title: 'Optional paint and rig up',
+        body: 'A dab of powder paint on the weight, heated with a lighter, makes the rig easy to see boatside and adds a strike target. Clip your line to the corner loop, harness on the arm swivel, drop to bottom, and troll 1.0 to 1.4 mph with the wire just ticking.',
+      },
+    ],
+    variations: [
+      'Pour a few 3 oz versions if you ever fish the 35 ft plus basin edges or heavy wind drifts.',
+      'Slow death bouncers: a shorter 8 in leg with 3/4 oz for finesse dragging at crawl speeds.',
+    ],
+    safety: 'Molten lead: work outdoors or with strong ventilation, wear safety glasses and gloves, never let moisture near the pot (steam explosion risk), keep a dedicated pouring area away from food, and wash hands after handling lead. Skip pouring entirely by buying slip-on weights.',
   },
 
   {

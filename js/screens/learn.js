@@ -1,11 +1,83 @@
 // Learn hub: gear curriculum, knots (step player), rigs, lure workshop, filleting.
-import { h, svgEl, levelBadge, backBtn } from '../ui.js';
+import { h, svgEl, levelBadge, backBtn, sheet, toast } from '../ui.js';
+import { store } from '../store.js';
 import { KNOTS, RIGS } from '../data/knots.js';
 import { GEAR } from '../data/gear.js';
 import { DIY } from '../data/diy.js';
 import { FILLET } from '../data/fillet.js';
 
 let levelFilter = 0; // 0 = all
+
+// ---- parts shopping list (LureMaking.com is phone/mail order, so a
+// consolidated list to read off is exactly what you need) ----
+const SUPPLIER = 'LureMaking.com (Real Pro’s SportFishing, Owen Sound ON) · 1-800-203-8427 · CAD prices, $40 minimum order, phone lines Mon-Thu 10-3 ET';
+
+function addToShopList(d) {
+  const list = store.get('shoplist', []);
+  for (const m of d.materials) list.push({ item: m.item, qty: m.qty, project: d.name });
+  store.set('shoplist', list);
+  toast(`🛒 ${d.materials.length} parts added to your shopping list`);
+}
+
+function shopListText() {
+  const list = store.get('shoplist', []);
+  const byProject = {};
+  for (const e of list) (byProject[e.project] ??= []).push(e);
+  let out = 'TIGHTLINES PARTS LIST\n';
+  for (const [proj, items] of Object.entries(byProject)) {
+    out += `\n-- ${proj} --\n`;
+    for (const e of items) out += `[ ] ${e.item} (${e.qty})\n`;
+  }
+  out += `\nSupplier: ${SUPPLIER}`;
+  return out;
+}
+
+function openShopList(onchange) {
+  const body = h('div');
+  const s = sheet(body);
+  const draw = () => {
+    const list = store.get('shoplist', []);
+    body.innerHTML = '';
+    body.appendChild(h('h2', {}, `🛒 Parts shopping list (${list.length})`));
+    if (!list.length) {
+      body.appendChild(h('p', { class: 'muted' }, 'Empty. Open any Lure Workshop project and tap “Add parts to shopping list”.'));
+      return;
+    }
+    const byProject = {};
+    list.forEach((e, i) => (byProject[e.project] ??= []).push([e, i]));
+    for (const [proj, items] of Object.entries(byProject)) {
+      body.appendChild(h('h3', {}, proj));
+      for (const [e, i] of items) {
+        body.appendChild(h('div', { class: 'row', style: 'cursor:default' },
+          h('div', { class: 'row-main' },
+            h('div', { class: 'row-sub', style: 'white-space:normal;font-size:13.5px;color:var(--text)' }, e.item),
+            h('div', { class: 'row-sub' }, e.qty)),
+          h('button', {
+            class: 'icon-btn', style: 'width:30px;height:30px;font-size:13px', onclick: () => {
+              const l = store.get('shoplist', []); l.splice(i, 1); store.set('shoplist', l); draw(); onchange && onchange();
+            },
+          }, '✕')));
+      }
+    }
+    body.appendChild(h('p', { class: 'faint', style: 'margin-top:10px' }, SUPPLIER));
+    body.appendChild(h('div', { class: 'spread', style: 'margin-top:10px;gap:8px' },
+      h('button', {
+        class: 'btn secondary small', onclick: () => {
+          store.set('shoplist', []); draw(); onchange && onchange(); toast('List cleared');
+        },
+      }, 'Clear all'),
+      h('button', {
+        class: 'btn small', onclick: async () => {
+          const text = shopListText();
+          if (navigator.share) { try { await navigator.share({ text, title: 'TightLines parts list' }); return; } catch { /* fall through */ } }
+          try { await navigator.clipboard.writeText(text); toast('📋 Copied — paste it anywhere'); }
+          catch { toast('Could not copy on this browser'); }
+        },
+      }, '⬆ Share / copy')));
+  };
+  draw();
+  return s;
+}
 
 function sectionRows(items, kind, root, sub = x => '') {
   return items
@@ -31,7 +103,16 @@ function hub(root) {
     h('div', { class: 'section-title' }, '🧷 Rigs'),
     h('div', { class: 'card' }, sectionRows(RIGS, 'rigs', root, x => x.targets)),
     h('div', { class: 'section-title' }, '🛠️ Lure workshop'),
-    h('div', { class: 'card' }, sectionRows(DIY, 'diy', root, x => `${x.time} · ${x.cost} · ${x.targets}`)),
+    h('div', { class: 'card' },
+      h('div', { class: 'row', onclick: () => openShopList(() => { root.innerHTML = ''; hub(root); }) },
+        h('div', { style: 'font-size:20px' }, '🛒'),
+        h('div', { class: 'row-main' },
+          h('div', { class: 'row-title' }, `Parts shopping list (${store.get('shoplist', []).length})`),
+          h('div', { class: 'row-sub' }, 'Build it from any project below, then share or read it off when ordering')),
+        h('div', { class: 'row-arrow' }, '›')),
+      sectionRows(DIY, 'diy', root, x => `${x.time} · ${x.cost} · ${x.targets}`),
+      h('p', { class: 'faint', style: 'margin:10px 4px 2px' },
+        'Parts source: LureMaking.com (Real Pro’s SportFishing, Owen Sound ON) — Canada’s largest lure-component catalogue. CAD prices, $40 minimum, phone orders 1-800-203-8427 Mon-Thu 10-3 ET. Order well ahead of a trip.')),
     h('div', { class: 'section-title' }, '🔪 Fillet & shore lunch'),
     h('div', { class: 'card' },
       h('div', { class: 'row', onclick: () => { location.hash = '#/learn/care/main'; } },
@@ -117,6 +198,7 @@ function diyView(root, d) {
       d.safety ? h('div', { class: 'now-flag' }, h('b', {}, '⚠️ Safety: '), d.safety) : null,
       h('h3', {}, 'Materials'),
       h('table', { class: 'lb' }, d.materials.map(m => h('tr', {}, h('td', {}, m.item), h('td', { style: 'white-space:nowrap;text-align:right' }, m.qty)))),
+      h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => addToShopList(d) }, '🛒 Add parts to shopping list'),
       h('h3', {}, 'Tools'),
       h('div', { class: 'chips' }, d.tools.map(t => h('span', { class: 'chip', style: 'cursor:default' }, t))),
       h('h3', {}, 'Build steps'),
