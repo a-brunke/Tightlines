@@ -1,83 +1,13 @@
-// Learn hub: gear curriculum, knots (step player), rigs, lure workshop, filleting.
-import { h, svgEl, levelBadge, backBtn, sheet, toast } from '../ui.js';
-import { store } from '../store.js';
+// Learn hub: gear curriculum, knots (step player), rigs, lure workshop,
+// soft plastics, filleting.
+import { h, svgEl, levelBadge, backBtn } from '../ui.js';
 import { KNOTS, RIGS } from '../data/knots.js';
 import { GEAR } from '../data/gear.js';
 import { DIY } from '../data/diy.js';
 import { FILLET } from '../data/fillet.js';
+import { SOFT_WEEK } from '../data/softweek.js';
 
 let levelFilter = 0; // 0 = all
-
-// ---- parts shopping list (LureMaking.com is phone/mail order, so a
-// consolidated list to read off is exactly what you need) ----
-const SUPPLIER = 'LureMaking.com (Real Pro’s SportFishing, Owen Sound ON) · 1-800-203-8427 · CAD prices, $40 minimum order, phone lines Mon-Thu 10-3 ET';
-
-function addToShopList(d) {
-  const list = store.get('shoplist', []);
-  for (const m of d.materials) list.push({ item: m.item, qty: m.qty, project: d.name });
-  store.set('shoplist', list);
-  toast(`🛒 ${d.materials.length} parts added to your shopping list`);
-}
-
-function shopListText() {
-  const list = store.get('shoplist', []);
-  const byProject = {};
-  for (const e of list) (byProject[e.project] ??= []).push(e);
-  let out = 'TIGHTLINES PARTS LIST\n';
-  for (const [proj, items] of Object.entries(byProject)) {
-    out += `\n-- ${proj} --\n`;
-    for (const e of items) out += `[ ] ${e.item} (${e.qty})\n`;
-  }
-  out += `\nSupplier: ${SUPPLIER}`;
-  return out;
-}
-
-function openShopList(onchange) {
-  const body = h('div');
-  const s = sheet(body);
-  const draw = () => {
-    const list = store.get('shoplist', []);
-    body.innerHTML = '';
-    body.appendChild(h('h2', {}, `🛒 Parts shopping list (${list.length})`));
-    if (!list.length) {
-      body.appendChild(h('p', { class: 'muted' }, 'Empty. Open any Lure Workshop project and tap “Add parts to shopping list”.'));
-      return;
-    }
-    const byProject = {};
-    list.forEach((e, i) => (byProject[e.project] ??= []).push([e, i]));
-    for (const [proj, items] of Object.entries(byProject)) {
-      body.appendChild(h('h3', {}, proj));
-      for (const [e, i] of items) {
-        body.appendChild(h('div', { class: 'row', style: 'cursor:default' },
-          h('div', { class: 'row-main' },
-            h('div', { class: 'row-sub', style: 'white-space:normal;font-size:13.5px;color:var(--text)' }, e.item),
-            h('div', { class: 'row-sub' }, e.qty)),
-          h('button', {
-            class: 'icon-btn', style: 'width:30px;height:30px;font-size:13px', onclick: () => {
-              const l = store.get('shoplist', []); l.splice(i, 1); store.set('shoplist', l); draw(); onchange && onchange();
-            },
-          }, '✕')));
-      }
-    }
-    body.appendChild(h('p', { class: 'faint', style: 'margin-top:10px' }, SUPPLIER));
-    body.appendChild(h('div', { class: 'spread', style: 'margin-top:10px;gap:8px' },
-      h('button', {
-        class: 'btn secondary small', onclick: () => {
-          store.set('shoplist', []); draw(); onchange && onchange(); toast('List cleared');
-        },
-      }, 'Clear all'),
-      h('button', {
-        class: 'btn small', onclick: async () => {
-          const text = shopListText();
-          if (navigator.share) { try { await navigator.share({ text, title: 'TightLines parts list' }); return; } catch { /* fall through */ } }
-          try { await navigator.clipboard.writeText(text); toast('📋 Copied — paste it anywhere'); }
-          catch { toast('Could not copy on this browser'); }
-        },
-      }, '⬆ Share / copy')));
-  };
-  draw();
-  return s;
-}
 
 function sectionRows(items, kind, root, sub = x => '') {
   return items
@@ -89,31 +19,59 @@ function sectionRows(items, kind, root, sub = x => '') {
       h('div', { class: 'row-arrow' }, '›')));
 }
 
+const SECTIONS = [
+  ['sec-gear', '🧭 Basics'],
+  ['sec-knots', '🪢 Knots'],
+  ['sec-rigs', '🧷 Rigs'],
+  ['sec-diy', '🛠️ Workshop'],
+  ['sec-soft', '🧪 Soft plastics'],
+  ['sec-fillet', '🔪 Fillet'],
+];
+
 function hub(root) {
+  const nav = h('div', { class: 'learn-nav' },
+    SECTIONS.map(([id, label]) => h('div', {
+      class: 'chip',
+      onclick: () => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    }, label)));
+
   const chips = h('div', { class: 'chips' },
     [[0, 'All levels'], [1, 'Beginner'], [2, 'Intermediate'], [3, 'Expert']].map(([v, label]) =>
       h('div', { class: 'chip' + (levelFilter === v ? ' active' : ''), onclick: () => { levelFilter = v; root.innerHTML = ''; hub(root); } }, label)));
 
   root.append(
+    nav,
     chips,
-    h('div', { class: 'section-title' }, '🧭 Getting started → expert'),
+    h('div', { class: 'section-title', id: 'sec-gear' }, '🧭 Getting started → expert'),
     h('div', { class: 'card' }, sectionRows(GEAR, 'gear', root, x => `${x.minutes} min · ${x.summary}`)),
-    h('div', { class: 'section-title' }, '🪢 Knots'),
+    h('div', { class: 'section-title', id: 'sec-knots' }, '🪢 Knots'),
     h('div', { class: 'card' }, sectionRows(KNOTS, 'knots', root, x => `${x.strength} strength · ${x.usedFor}`)),
-    h('div', { class: 'section-title' }, '🧷 Rigs'),
+    h('div', { class: 'section-title', id: 'sec-rigs' }, '🧷 Rigs'),
     h('div', { class: 'card' }, sectionRows(RIGS, 'rigs', root, x => x.targets)),
-    h('div', { class: 'section-title' }, '🛠️ Lure workshop'),
+    h('div', { class: 'section-title', id: 'sec-diy' }, '🛠️ Lure workshop'),
     h('div', { class: 'card' },
-      h('div', { class: 'row', onclick: () => openShopList(() => { root.innerHTML = ''; hub(root); }) },
-        h('div', { style: 'font-size:20px' }, '🛒'),
-        h('div', { class: 'row-main' },
-          h('div', { class: 'row-title' }, `Parts shopping list (${store.get('shoplist', []).length})`),
-          h('div', { class: 'row-sub' }, 'Build it from any project below, then share or read it off when ordering')),
-        h('div', { class: 'row-arrow' }, '›')),
-      sectionRows(DIY, 'diy', root, x => `${x.time} · ${x.cost} · ${x.targets}`),
+      sectionRows(DIY.filter(d => d.id !== 'soft-plastics'), 'diy', root, x => `${x.time} · ${x.cost} · ${x.targets}`),
       h('p', { class: 'faint', style: 'margin:10px 4px 2px' },
         'Parts source: LureMaking.com (Real Pro’s SportFishing, Owen Sound ON) — Canada’s largest lure-component catalogue. CAD prices, $40 minimum, phone orders 1-800-203-8427 Mon-Thu 10-3 ET. Order well ahead of a trip.')),
-    h('div', { class: 'section-title' }, '🔪 Fillet & shore lunch'),
+    h('div', { class: 'section-title', id: 'sec-soft' }, '🧪 Soft plastics'),
+    h('div', { class: 'card' },
+      h('div', { class: 'row', onclick: () => { location.hash = '#/learn/softweek/main'; } },
+        h('div', { style: 'font-size:20px' }, '🔥'),
+        h('div', { class: 'row-main' },
+          h('div', { class: 'row-title' }, 'This week’s softbait playbook'),
+          h('div', { class: 'row-sub' }, `${SOFT_WEEK.season} · ${SOFT_WEEK.picks.length} baits, rigged exactly for this lake`)),
+        h('div', { class: 'row-arrow' }, '›')),
+      (() => {
+        const pour = DIY.find(d => d.id === 'soft-plastics');
+        return pour && (!levelFilter || pour.level === levelFilter)
+          ? h('div', { class: 'row', onclick: () => { location.hash = '#/learn/diy/soft-plastics'; } },
+              h('div', { class: 'row-main' },
+                h('div', { class: 'row-title' }, pour.name, ' ', levelBadge(pour.level)),
+                h('div', { class: 'row-sub' }, `${pour.time} · ${pour.cost}`)),
+              h('div', { class: 'row-arrow' }, '›'))
+          : null;
+      })()),
+    h('div', { class: 'section-title', id: 'sec-fillet' }, '🔪 Fillet & shore lunch'),
     h('div', { class: 'card' },
       h('div', { class: 'row', onclick: () => { location.hash = '#/learn/care/main'; } },
         h('div', { class: 'row-main' },
@@ -198,7 +156,6 @@ function diyView(root, d) {
       d.safety ? h('div', { class: 'now-flag' }, h('b', {}, '⚠️ Safety: '), d.safety) : null,
       h('h3', {}, 'Materials'),
       h('table', { class: 'lb' }, d.materials.map(m => h('tr', {}, h('td', {}, m.item), h('td', { style: 'white-space:nowrap;text-align:right' }, m.qty)))),
-      h('button', { class: 'btn secondary small', style: 'margin-top:8px', onclick: () => addToShopList(d) }, '🛒 Add parts to shopping list'),
       h('h3', {}, 'Tools'),
       h('div', { class: 'chips' }, d.tools.map(t => h('span', { class: 'chip', style: 'cursor:default' }, t))),
       h('h3', {}, 'Build steps'),
@@ -224,6 +181,24 @@ function filletView(root, g) {
           h('div', { class: 'row-sub', style: 'white-space:normal' }, s.body)))),
       h('h3', {}, 'Tips'),
       h('ul', { class: 'ticks' }, (g.tips || []).map(t => h('li', {}, t)))));
+}
+
+function softWeekView(root) {
+  root.append(
+    backBtn('#/learn', 'Learn'),
+    h('div', { class: 'card' },
+      h('h2', {}, '🔥 This week’s softbait playbook'),
+      h('p', { class: 'muted mt0' }, SOFT_WEEK.season + ' · Lake Kagawong'),
+      h('p', {}, SOFT_WEEK.intro)),
+    ...SOFT_WEEK.picks.map(p => h('div', { class: 'card' },
+      h('h2', {}, `${p.emoji} ${p.name}`),
+      h('p', { class: 'muted mt0' }, p.target),
+      h('p', {}, p.why),
+      h('div', { class: 'now-flag' }, h('b', {}, '🎣 Rig it: '), p.rig),
+      h('h3', {}, 'Colours'), h('p', { class: 'muted' }, p.colors),
+      h('h3', {}, 'Where on this lake'), h('p', { class: 'muted' }, p.where))),
+    h('div', { class: 'card' },
+      h('p', { class: 'faint mb0' }, SOFT_WEEK.note)));
 }
 
 function careView(root) {
@@ -257,6 +232,7 @@ export default {
     if (kind === 'gear') { const g = GEAR.find(x => x.id === id); if (g) return gearView(root, g); }
     if (kind === 'diy') { const d = DIY.find(x => x.id === id); if (d) return diyView(root, d); }
     if (kind === 'fillet') { const g = (FILLET.guides || []).find(x => x.id === id); if (g) return filletView(root, g); }
+    if (kind === 'softweek') return softWeekView(root);
     if (kind === 'care') return careView(root);
     if (kind === 'recipe') { const r = (FILLET.recipes || []).find(x => x.id === id); if (r) return recipeView(root, r); }
     hub(root);

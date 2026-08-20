@@ -426,6 +426,58 @@ export const DIY = [
   },
 
   {
+    id: 'soft-plastics',
+    name: 'Pouring Soft Plastics',
+    level: 3,
+    time: '2 hr session, 30-60 baits',
+    cost: '$0.10-0.25 per bait',
+    targets: 'Everything: smallmouth, walleye, perch, pike',
+    why: 'Store softbaits are $6-9 a bag and the good colours sell out. With a CNC aluminum mold and a jug of plastisol you pour exact copies for pennies, in any colour, salted or glowed exactly how you like, and refill the bag every winter. Canadian-made CNC molds exist for every style that works here: Ned baits, drop-shot minnows, paddle tails, tubes, stick worms, even an Ontario Smelt pattern.',
+    materials: [
+      { item: 'CNC machined aluminum 2-piece mold (start with a 2.75 in Ned bait or 5 in stick worm, multi-cavity)', qty: '1' },
+      { item: 'Liquid plastisol, medium hardness', qty: '1 L pours roughly 80-150 baits' },
+      { item: 'Liquid colorant (green pumpkin, watermelon, chartreuse) and fine glitter (black, copper, silver)', qty: 'a few drops per batch' },
+      { item: 'Plastic injector (required for closed 2-piece molds), 4 oz barrel', qty: '1' },
+      { item: 'Heat-proof measuring cup (Pyrex) dedicated to plastic, never food again', qty: '1' },
+      { item: 'Worm oil and zip bags for storing finished baits', qty: '1 bottle' },
+      { item: 'Optional: salt, scent, glow or UV powder, softener/hardener to tune the plastic', qty: 'to taste' },
+    ],
+    tools: ['Dedicated microwave or hot plate (never the kitchen food microwave)', 'Digital infrared thermometer', 'Heat gloves and safety glasses', 'Two spring clamps per small mold', 'Stir sticks'],
+    steps: [
+      {
+        title: 'Set up a safe pour station',
+        body: 'Work in a garage or outdoors with real ventilation. Plastisol heats to 325-350 F and behaves like napalm on skin: long sleeves, heat gloves, safety glasses, and zero water anywhere near the hot plastic. Dedicate every utensil to lure making permanently.',
+      },
+      {
+        title: 'Heat and condition the plastisol',
+        body: 'Shake the jug hard (the resin settles). Heat 4-8 oz in the Pyrex cup in 30-60 second bursts, stirring between bursts, until it turns from milky to water-clear and pourable at 325-350 F on the infrared thermometer. Overheated plastic scorches yellow and smokes; toss it and start over.',
+      },
+      {
+        title: 'Colour the batch',
+        body: 'Stir in colorant one drop at a time (it is concentrated), then glitter. For laminates like green pumpkin over pearl, pour two batches and shoot them in stages. A drop of scent or a spoon of salt goes in last.',
+      },
+      {
+        title: 'Clamp and inject',
+        body: 'Clamp the two mold halves with 2 clamps (small molds) so the seam is tight. Draw hot plastic into the injector, seat the nozzle in the sprue hole, and inject with steady pressure until plastic just backs up at the vent. Hold pressure 10 seconds so tails fill completely.',
+      },
+      {
+        title: 'Cool, demold, cure',
+        body: 'Let the mold cool 2-4 minutes (aluminum cools fast), open, and lay the baits flat or hang them so they cure straight. They firm up fully in a day. Reheat and re-shoot any rejects, plastisol remelts endlessly.',
+      },
+      {
+        title: 'Bag with worm oil',
+        body: 'Store each colour in its own zip bag with a squirt of worm oil so they never dry or stick. Label the bag with the colour recipe (drops of what per oz) so a killer batch is repeatable next winter.',
+      },
+    ],
+    variations: [
+      'Glow drop-shot minnows: add glow powder and charge them with your headlamp for the last-light walleye window.',
+      'Soft and slow: extra softener for a limper Ned bait with more shimmy on the deadstick.',
+      'Two-colour laminates: shoot the belly colour first, let it skin over 30 seconds, then top up with the back colour.',
+    ],
+    safety: 'Molten plastisol is 350 F liquid plastic: full skin coverage, glasses, gloves, ventilation, and never in the family food microwave. Keep water away (spatter risk). Fumes from overheated plastic are toxic, heat slow and low. Keep a fire extinguisher within reach and kids and pets out of the room.',
+  },
+
+  {
     id: 'crankbait-wood',
     name: 'Carved Cedar Crankbait',
     level: 3,

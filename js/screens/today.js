@@ -62,24 +62,72 @@ function openRegs() {
 }
 
 // ---------- weather ----------
+// Animated radar: past hour of real radar (6-min frames) + the next 8 hours
+// of HRDPS forecast-model precipitation, both from ECCC GeoMet (keyless).
 function openRadar() {
   if (!navigator.onLine) { toast('Radar needs a signal'); return; }
   const home = store.get('home', KAGAWONG);
-  const mapDiv = h('div', { style: 'height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--line)' });
+  const GEOMET = 'https://geo.weather.gc.ca/geomet';
+
+  // build the frame timeline
+  const SIX = 6 * 60e3, HOUR = 3600e3;
+  const latestRadar = Math.floor((Date.now() - 12 * 60e3) / SIX) * SIX;
+  const frames = [];
+  for (let i = 9; i >= 0; i--) {
+    const t = latestRadar - i * SIX;
+    frames.push({ kind: 'radar', t, label: i === 0 ? 'now' : `−${Math.round((latestRadar - t) / 60e3)} min` });
+  }
+  const nextHour = Math.ceil(Date.now() / HOUR) * HOUR;
+  for (let hh = 0; hh < 8; hh++) {
+    const t = nextHour + hh * HOUR;
+    frames.push({ kind: 'model', t, label: `+${Math.max(1, Math.round((t - Date.now()) / HOUR))} h forecast` });
+  }
+  const iso = t => new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+  const mapDiv = h('div', { style: 'height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line)' });
+  const label = h('b', { style: 'min-width:110px;display:inline-block' }, '…');
+  const slider = h('input', { type: 'range', min: 0, max: frames.length - 1, value: 9, style: 'flex:1' });
+  const playBtn = h('button', { class: 'icon-btn', style: 'flex:none' }, '⏸');
   sheet(
-    h('h2', {}, '🌧️ Precipitation radar'),
-    h('p', { class: 'muted mt0' }, 'Latest Environment Canada composite. Green light rain → red heavy.'),
+    h('h2', {}, '🌧️ Radar + next 8 hours'),
+    h('p', { class: 'muted mt0' }, 'Past hour is real radar; the “+ hours” frames are the HRDPS forecast model — the same future-radar weather sites show. Green light → red heavy.'),
     mapDiv,
-    h('p', { class: 'faint', style: 'margin-top:8px' }, 'Radar: Environment and Climate Change Canada (GeoMet). Live only — no offline radar.'));
+    h('div', { style: 'display:flex;align-items:center;gap:10px;margin-top:10px' }, playBtn, slider, label),
+    h('p', { class: 'faint', style: 'margin-top:8px' }, 'Environment and Climate Change Canada (GeoMet). Live only — no offline radar.'));
+
   setTimeout(() => {
     const m = L.map(mapDiv, { zoomControl: false }).setView([home.lat, home.lng], 7);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { className: 'basetiles', attribution: '© OpenStreetMap' }).addTo(m);
-    L.tileLayer.wms('https://geo.weather.gc.ca/geomet', {
-      layers: 'RADAR_1KM_RRAI', format: 'image/png', transparent: true, opacity: 0.75,
-      attribution: 'ECCC GeoMet',
+    const mk = layers => L.tileLayer.wms(GEOMET, {
+      layers, format: 'image/png', transparent: true, opacity: 0, attribution: 'ECCC GeoMet', version: '1.3.0',
     }).addTo(m);
+    const radarLayer = mk('RADAR_1KM_RRAI');
+    const modelLayer = mk('HRDPS.CONTINENTAL_RT');
     L.circleMarker([home.lat, home.lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#e46e6e', fillOpacity: 1 })
       .bindTooltip('Lake Kagawong').addTo(m);
+
+    function show(i) {
+      const f = frames[i];
+      const active = f.kind === 'radar' ? radarLayer : modelLayer;
+      const idle = f.kind === 'radar' ? modelLayer : radarLayer;
+      active.setParams({ time: iso(f.t) });
+      active.setOpacity(0.75);
+      idle.setOpacity(0);
+      label.textContent = `${f.label} · ${fmtTime(f.t)}`;
+      slider.value = i;
+    }
+
+    let playing = true;
+    let idx = 9;
+    const timer = setInterval(() => {
+      if (!playing) return;
+      idx = (idx + 1) % frames.length;
+      show(idx);
+    }, 900);
+    playBtn.onclick = () => { playing = !playing; playBtn.textContent = playing ? '⏸' : '▶'; };
+    slider.oninput = () => { playing = false; playBtn.textContent = '▶'; idx = +slider.value; show(idx); };
+    mapDiv.closest('.sheet-back')?.addEventListener('click', () => clearInterval(timer));
+    show(idx);
   }, 120);
 }
 

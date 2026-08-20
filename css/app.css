@@ -134,6 +134,16 @@ p { margin: 0.4em 0; }
 .btn:disabled { opacity: 0.5; }
 
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.learn-nav {
+  position: sticky; top: calc(55px + var(--sat)); z-index: 800;
+  display: flex; gap: 8px; overflow-x: auto; flex-wrap: nowrap;
+  margin: -6px -14px 6px; padding: 8px 14px;
+  background: linear-gradient(180deg, var(--bg) 82%, transparent);
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.learn-nav::-webkit-scrollbar { display: none; }
+.learn-nav .chip { flex: none; white-space: nowrap; }
+.section-title { scroll-margin-top: calc(108px + var(--sat)); }
 .chip {
   border: 1px solid var(--line); background: var(--panel);
   color: var(--text-dim); border-radius: 999px;

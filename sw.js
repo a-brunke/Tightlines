@@ -1,5 +1,5 @@
 // TightLines service worker: precache app shell, cache-first with tile runtime cache.
-const VERSION = 'v7';
+const VERSION = 'v8';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'tiles-v1';
 
@@ -26,6 +26,8 @@ const ASSETS = [
   './js/data/regs.js',
   './js/data/silhouettes.js',
   './js/data/wizard.js',
+  './js/data/softweek.js',
+  './js/weather.js',
   './vendor/leaflet/leaflet.js',
   './vendor/leaflet/leaflet.css',
   './vendor/suncalc.js',
