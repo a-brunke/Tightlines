@@ -373,6 +373,10 @@ export default {
       history.replaceState(null, '', '#/log');
       setTimeout(() => openCatchForm(redraw), 50);
     }
+    if (params[0] === 'derby') {
+      tab = 'derby';
+      history.replaceState(null, '', '#/log');
+    }
 
     const chips = h('div', { class: 'chips' },
       h('div', { class: 'chip' + (tab === 'catches' ? ' active' : ''), onclick: () => { tab = 'catches'; redraw(); } }, '🐟 Catches'),

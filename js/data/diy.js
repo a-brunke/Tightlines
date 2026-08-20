@@ -200,7 +200,7 @@ export const DIY = [
     why: 'An inline spinner is the classic first lure build: five components on a wire shaft, and yours will fish exactly like the $6 to $9 name-brand versions. Once you can form a wrapped loop you can also repair every bent spinner in your box.',
     materials: [
       { item: 'Stainless spinner shaft wire, .026 in dia, 6 in straight lengths (or pre-formed shafts with a wrapped eye)', qty: '1' },
-      { item: 'Colorado blade, #3, nickel or brass, about 1 1/8 in long', qty: '1' },
+      { item: 'French blade, #3, nickel or brass (the classic inline blade; save Colorados for worm harnesses)', qty: '1' },
       { item: 'Stirrup clevis, size 2, stainless', qty: '1' },
       { item: 'Hollow brass beads, 3 mm', qty: '2' },
       { item: 'Solid brass spinner body, 3/16 oz, or three 4 mm beads plus a 1/4 in brass bullet body', qty: '1' },
@@ -218,7 +218,7 @@ export const DIY = [
       },
       {
         title: 'Mount the blade on the clevis',
-        body: 'Hang the #3 Colorado blade on the size 2 clevis with the blade\'s concave (cupped) face toward the shaft and the narrow end of the blade at the clevis. Slide both clevis legs onto the shaft. Give it a test flick: the blade must swing freely around the shaft without binding on the bead below it.',
+        body: 'Hang the #3 French blade on the size 2 clevis with the blade\'s concave (cupped) face toward the shaft and the narrow end of the blade at the clevis. Slide both clevis legs onto the shaft. Give it a test flick: the blade must swing freely around the shaft without binding on the bead below it. French blades run at about 45 degrees with a strong mid-speed thump, which is exactly what an inline wants.',
       },
       {
         title: 'Form the top loop',
@@ -230,9 +230,9 @@ export const DIY = [
       },
     ],
     variations: [
-      'Brook trout size: #2 Colorado blade, 1/8 oz body, #8 treble, silver blade with a red bead.',
-      'Pike size: #4 or #5 Colorado, 3/8 oz body, #2 treble dressed with white bucktail (see the bucktail jig project for tying method).',
-      'Stained water walleye: gold #3 French blade, chartreuse body beads, #6 single siwash hook instead of a treble for easier releases.',
+      'Brook trout size: #2 French blade, 1/8 oz body, #8 treble, silver blade with a red bead.',
+      'Pike size: #4 or #5 French blade, 3/8 oz body, #2 treble dressed with white bucktail (see the bucktail jig project for tying method).',
+      'Extra thump for stained water: swap to an Indiana blade, gold, with chartreuse body beads and a #6 single siwash hook for easier releases.',
     ],
   },
 

@@ -1,7 +1,8 @@
-// Today: solunar dashboard + quick tools + what's biting this week.
-import { h, svgEl, fmtTime, fmtDate, sheet } from '../ui.js';
+// Today: solunar + live weather + the Kagawong Cup leaderboard + quick tools.
+import { h, svgEl, fmtTime, fmtDate, sheet, toast } from '../ui.js';
 import { solunarDay, moonSVG, KAGAWONG } from '../solunar.js';
-import { openEstimator, openWizard } from '../tools.js';
+import { openEstimator, openWizard, fmtWeight } from '../tools.js';
+import { getWeather, wmo, windDir, pressureTrend, nowIndex } from '../weather.js';
 import { FISH } from '../data/fish.js';
 import { REGS } from '../data/regs.js';
 import { store } from '../store.js';
@@ -60,6 +61,129 @@ function openRegs() {
   );
 }
 
+// ---------- weather ----------
+function openRadar() {
+  if (!navigator.onLine) { toast('Radar needs a signal'); return; }
+  const home = store.get('home', KAGAWONG);
+  const mapDiv = h('div', { style: 'height:340px;border-radius:12px;overflow:hidden;border:1px solid var(--line)' });
+  sheet(
+    h('h2', {}, '🌧️ Precipitation radar'),
+    h('p', { class: 'muted mt0' }, 'Latest Environment Canada composite. Green light rain → red heavy.'),
+    mapDiv,
+    h('p', { class: 'faint', style: 'margin-top:8px' }, 'Radar: Environment and Climate Change Canada (GeoMet). Live only — no offline radar.'));
+  setTimeout(() => {
+    const m = L.map(mapDiv, { zoomControl: false }).setView([home.lat, home.lng], 7);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { className: 'basetiles', attribution: '© OpenStreetMap' }).addTo(m);
+    L.tileLayer.wms('https://geo.weather.gc.ca/geomet', {
+      layers: 'RADAR_1KM_RRAI', format: 'image/png', transparent: true, opacity: 0.75,
+      attribution: 'ECCC GeoMet',
+    }).addTo(m);
+    L.circleMarker([home.lat, home.lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#e46e6e', fillOpacity: 1 })
+      .bindTooltip('Lake Kagawong').addTo(m);
+  }, 120);
+}
+
+function openWeatherSheet(wx, cachedAt, stale) {
+  const d = wx;
+  const cur = d.current;
+  const [ico, desc] = wmo(cur.weather_code);
+  const trend = pressureTrend(d);
+  const i0 = nowIndex(d);
+  const hourly = [];
+  for (let i = i0 + 1; i <= i0 + 12 && i < d.hourly.time.length; i += 2) {
+    hourly.push(h('div', { class: 'row', style: 'cursor:default;padding:7px 4px' },
+      h('div', { style: 'width:56px;font-size:12.5px;color:var(--text-faint)' }, fmtTime(d.hourly.time[i])),
+      h('div', { style: 'font-size:18px;width:32px' }, wmo(d.hourly.weather_code[i])[0]),
+      h('div', { class: 'row-main' },
+        h('div', { class: 'row-sub', style: 'color:var(--text)' },
+          `${Math.round(d.hourly.temperature_2m[i])}° · wind ${Math.round(d.hourly.wind_speed_10m[i])} g${Math.round(d.hourly.wind_gusts_10m[i])} km/h`)),
+      h('div', { class: 'faint' }, `${d.hourly.precipitation_probability?.[i] ?? 0}%💧`)));
+  }
+  const daily = (d.daily.time || []).map((t, i) => h('div', { class: 'row', style: 'cursor:default;padding:7px 4px' },
+    h('div', { style: 'width:56px;font-weight:700;font-size:13px' }, i === 0 ? 'Today' : new Date(t + 'T12:00').toLocaleDateString([], { weekday: 'short' })),
+    h('div', { style: 'font-size:18px;width:32px' }, wmo(d.daily.weather_code[i])[0]),
+    h('div', { class: 'row-main' },
+      h('div', { class: 'row-sub', style: 'color:var(--text)' },
+        `${Math.round(d.daily.temperature_2m_max[i])}° / ${Math.round(d.daily.temperature_2m_min[i])}° · wind ${Math.round(d.daily.wind_speed_10m_max[i])} g${Math.round(d.daily.wind_gusts_10m_max[i])}`)),
+    h('div', { class: 'faint' }, `${d.daily.precipitation_probability_max?.[i] ?? 0}%💧`)));
+
+  sheet(
+    h('div', { class: 'spread' },
+      h('h2', { class: 'mb0' }, `${ico} ${Math.round(cur.temperature_2m)}°C`),
+      h('button', { class: 'btn secondary small', onclick: openRadar }, '🌧️ Radar')),
+    h('p', { class: 'muted mt0' },
+      `${desc} · feels ${Math.round(cur.apparent_temperature)}° · wind ${windDir(cur.wind_direction_10m)} ${Math.round(cur.wind_speed_10m)} gusting ${Math.round(cur.wind_gusts_10m)} km/h · cloud ${cur.cloud_cover}%`),
+    stale ? h('p', { class: 'now-flag' }, h('b', {}, '📵 Offline — '), `showing forecast fetched ${fmtTime(cachedAt)}.`) : null,
+    trend ? h('div', { class: 'now-flag' },
+      h('b', {}, `${trend.arrow} Barometer ${trend.label} (${trend.delta >= 0 ? '+' : ''}${trend.delta.toFixed(1)} hPa/6h). `), trend.hint) : null,
+    h('h3', {}, 'Next 24 hours'), ...hourly,
+    h('h3', {}, 'The week'), ...daily,
+    h('p', { class: 'faint' }, 'Forecast: Open-Meteo · updates every 30 min when online. Wind matters most out here — fish the blown shoreline.'));
+}
+
+function weatherStrip() {
+  const home = store.get('home', KAGAWONG);
+  const strip = h('div', {
+    class: 'wx-strip',
+    onclick: () => { if (strip._wx) openWeatherSheet(strip._wx.data, strip._wx.cachedAt, strip._wx.stale); },
+  }, h('span', { class: 'faint' }, '⏳ fetching weather…'));
+  getWeather(home.lat, home.lng).then(res => {
+    strip._wx = res;
+    const cur = res.data.current;
+    const [ico] = wmo(cur.weather_code);
+    const trend = pressureTrend(res.data);
+    strip.innerHTML = '';
+    strip.append(...[
+      h('span', { style: 'font-size:20px' }, ico),
+      h('b', {}, `${Math.round(cur.temperature_2m)}°C`),
+      h('span', { class: 'muted' }, `wind ${windDir(cur.wind_direction_10m)} ${Math.round(cur.wind_speed_10m)} g${Math.round(cur.wind_gusts_10m)}`),
+      trend ? h('span', { class: 'muted' }, `${trend.arrow} ${trend.label}`) : null,
+      res.stale ? h('span', { class: 'faint' }, `📵 ${fmtTime(res.cachedAt)}`) : null,
+      h('span', { class: 'row-arrow', style: 'margin-left:auto' }, '›'),
+    ].filter(Boolean));
+  }).catch(() => {
+    strip.innerHTML = '';
+    strip.append(h('span', { class: 'faint' }, '📵 No weather yet — connect once to load the forecast'));
+  });
+  return strip;
+}
+
+// ---------- Kagawong Cup leaderboard ----------
+function derbyCard() {
+  const catches = store.get('catches', []);
+  const open = () => { location.hash = '#/log/derby'; };
+  if (!catches.length) {
+    return h('div', { class: 'card', style: 'cursor:pointer', onclick: open },
+      h('h2', {}, '🏆 The Kagawong Cup'),
+      h('p', { class: 'muted mt0' }, 'The trip leaderboard lives here. Log your catches, scan the crew’s 🔳 QR codes, and watch the standings brawl begin.'));
+  }
+  const byAngler = {};
+  for (const c of catches) {
+    const a = byAngler[c.angler] ??= { name: c.angler, n: 0, big: null };
+    a.n++;
+    if (c.lb != null && (!a.big || c.lb > a.big.lb)) a.big = c;
+  }
+  const biggest = [...catches].filter(c => c.lb != null).sort((x, y) => y.lb - x.lb).slice(0, 3);
+  const standings = Object.values(byAngler).sort((x, y) => (y.big?.lb ?? 0) - (x.big?.lb ?? 0));
+  return h('div', { class: 'card', style: 'cursor:pointer', onclick: open },
+    h('div', { class: 'spread' },
+      h('h2', { class: 'mb0' }, '🏆 The Kagawong Cup'),
+      h('span', { class: 'faint' }, `${catches.length} fish · full standings ›`)),
+    biggest.length ? h('div', { class: 'podium', style: 'margin-top:10px' },
+      [1, 0, 2].map(rank => {
+        const c = biggest[rank];
+        if (!c) return h('div');
+        return h('div', { class: 'pod' + (rank === 0 ? ' first' : '') },
+          h('div', { class: 'pod-medal' }, ['🥇', '🥈', '🥉'][rank]),
+          h('div', { class: 'pod-name' }, c.angler),
+          h('div', { class: 'pod-stat' }, c.speciesName),
+          h('div', { class: 'pod-stat' }, h('b', {}, c.lbTxt || fmtWeight(c.lb)), c.len ? ` · ${c.len}"` : ''));
+      })) : null,
+    h('div', { class: 'chips', style: 'margin:10px 0 0' },
+      standings.slice(0, 6).map(a => h('span', { class: 'chip', style: 'cursor:default' },
+        `${a.name} · ${a.n}🐟${a.big ? ' · best ' + (a.big.lbTxt || fmtWeight(a.big.lb)) : ''}`))));
+}
+
 export default {
   id: 'today',
   render(root) {
@@ -92,6 +216,7 @@ export default {
         h('span', {}, `🌅 ${sol.sun.sunrise ? fmtTime(sol.sun.sunrise) : '—'}`),
         h('span', {}, `🌇 ${sol.sun.sunset ? fmtTime(sol.sun.sunset) : '—'}`),
         h('span', {}, `🌙 ${sol.moon.rise ? '↑' + fmtTime(sol.moon.rise) : ''} ${sol.moon.set ? '↓' + fmtTime(sol.moon.set) : ''}`)),
+      weatherStrip(),
     );
 
     const tools = h('div', { class: 'card' },
@@ -121,6 +246,6 @@ export default {
           h('b', {}, f.name + ': '), f.augustNotes ? f.augustNotes.split('. ').slice(0, 2).join('. ') + '.' : '')),
       h('p', { class: 'faint' }, 'Late-August patterns for Ontario waters. Tap a species for the full playbook.'));
 
-    root.append(hero, tools, biting);
+    root.append(hero, derbyCard(), tools, biting);
   },
 };
