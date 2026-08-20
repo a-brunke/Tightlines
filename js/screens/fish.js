@@ -7,14 +7,26 @@ import { openEstimator } from '../tools.js';
 
 let query = '';
 
+// Species art: generated illustration with silhouette fallback.
+function fishArt(f, cls) {
+  const wrap = h('div', { class: cls });
+  const img = h('img', { src: `data/fish-img/${f.id}.jpg`, alt: f.name, loading: 'lazy' });
+  img.addEventListener('error', () => {
+    wrap.innerHTML = '';
+    const sil = svgEl(silhouette(f.bodyType), '0 0 200 80');
+    sil.style.color = f.accent;
+    wrap.appendChild(sil);
+  });
+  wrap.appendChild(img);
+  return wrap;
+}
+
 function fishCard(f) {
-  const el = h('div', { class: 'fish-card', onclick: () => { location.hash = `#/fish/${f.id}`; } },
+  return h('div', { class: 'fish-card', onclick: () => { location.hash = `#/fish/${f.id}`; } },
     h('div', { class: 'fc-accent', style: `background:${f.accent}` }),
-    svgEl(silhouette(f.bodyType), '0 0 200 80'),
+    fishArt(f, 'fc-art'),
     h('div', { class: 'fc-name' }, f.name),
     h('div', { class: 'fc-tag' }, f.tagline || ''));
-  el.querySelector('svg').style.color = f.accent;
-  return el;
 }
 
 function listView(root) {
@@ -54,14 +66,12 @@ function seasonBlock(f) {
 }
 
 function detailView(root, f) {
-  const sil = svgEl(silhouette(f.bodyType), '0 0 200 80');
-  sil.style.color = f.accent;
   const reg = regsFor(f.id);
 
   root.append(
     backBtn('#/fish', 'All species'),
     h('div', { class: 'fish-hero', style: `background:linear-gradient(170deg, color-mix(in srgb, ${f.accent} 14%, var(--panel)), var(--panel))` },
-      sil,
+      fishArt(f, 'hero-art'),
       h('h1', {}, f.name),
       h('div', { class: 'sci' }, f.sci),
       h('div', { class: 'tagline' },

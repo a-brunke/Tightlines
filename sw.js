@@ -1,5 +1,5 @@
 // TightLines service worker: precache app shell, cache-first with tile runtime cache.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'tiles-v1';
 
@@ -31,6 +31,12 @@ const ASSETS = [
   './vendor/suncalc.js',
   './data/kagawong-lake.geojson',
   './data/kagawong-bathymetry.geojson',
+  ...[
+    'walleye', 'yellow-perch', 'northern-pike', 'muskellunge', 'smallmouth-bass',
+    'largemouth-bass', 'black-crappie', 'bluegill', 'pumpkinseed', 'rock-bass',
+    'lake-trout', 'brook-trout', 'rainbow-trout', 'brown-trout', 'chinook-salmon',
+    'lake-whitefish', 'channel-catfish', 'burbot', 'brown-bullhead',
+  ].map(id => `./data/fish-img/${id}.jpg`),
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',

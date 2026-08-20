@@ -1,6 +1,6 @@
 // Catch log + family derby leaderboard.
 import { h, sheet, toast, fmtTime, fmtDate } from '../ui.js';
-import { store, uid, savePhoto, getPhoto, delPhoto, shrinkImage } from '../store.js';
+import { store, uid, savePhoto, getPhoto, delPhoto, shrinkImage, blobToDataURL, dataURLToBlob } from '../store.js';
 import { FISH } from '../data/fish.js';
 import { estimateWeight, fmtWeight } from '../tools.js';
 
@@ -160,6 +160,10 @@ function derbyView(host) {
     h('div', { class: 'row', style: 'cursor:default' }, h('div', { style: 'font-size:22px' }, '🌈'),
       h('div', { class: 'row-main' }, h('div', { class: 'row-title' }, 'Most species'), h('div', { class: 'row-sub' }, `${diverse.name} · ${diverse.species.size} species`)))));
 
+  host.appendChild(h('div', { class: 'now-flag' },
+    h('b', {}, '🚤 Two boats? '),
+    'Tap ⬆ Share on one phone, send the file with Quick Share (works with no signal), then ⬇ Merge on the other. Catches and photos combine into one leaderboard, no duplicates.'));
+
   host.appendChild(h('div', { class: 'card' },
     h('h2', {}, '📊 Standings'),
     h('table', { class: 'lb' },
@@ -169,15 +173,64 @@ function derbyView(host) {
         h('td', {}, a.big?.lbTxt ? `${a.big.lbTxt} ${a.big.speciesName}` : '—'))))));
 }
 
-// Share/download all trip data as a JSON file (photos stay on-device).
-async function exportTrip() {
-  const data = {
-    app: 'TightLines', exported: new Date().toISOString(),
+// Bundle all trip data (photos embedded as data URLs) for boat-to-boat merging.
+export async function packTrip() {
+  const catches = [];
+  for (const c of store.get('catches', [])) {
+    const copy = { ...c };
+    if (c.photoId) {
+      const blob = await getPhoto(c.photoId);
+      if (blob) copy.photo = await blobToDataURL(blob);
+    }
+    catches.push(copy);
+  }
+  return {
+    app: 'TightLines', version: 2, exported: new Date().toISOString(),
+    from: (store.get('anglers', [])[0] || 'angler'),
     anglers: store.get('anglers', []),
-    catches: store.get('catches', []),
+    catches,
     waypoints: store.get('waypoints', []),
   };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+}
+
+// Merge a trip file's contents into local storage. Returns counts of new items.
+export async function mergeTrip(data) {
+  if (!data || data.app !== 'TightLines' || !Array.isArray(data.catches)) return null;
+
+  const anglers = new Set(store.get('anglers', []));
+  (data.anglers || []).forEach(a => typeof a === 'string' && anglers.add(a));
+  store.set('anglers', [...anglers]);
+
+  const wps = store.get('waypoints', []);
+  const wpIds = new Set(wps.map(w => w.id));
+  let newWp = 0;
+  for (const w of data.waypoints || []) {
+    if (w && w.id && !wpIds.has(w.id)) { wps.push(w); newWp++; }
+  }
+  store.set('waypoints', wps);
+
+  const catches = store.get('catches', []);
+  const cIds = new Set(catches.map(c => c.id));
+  let newC = 0;
+  for (const c of data.catches) {
+    if (!c || !c.id || cIds.has(c.id)) continue;
+    const { photo, ...entry } = c;
+    if (photo) {
+      entry.photoId = entry.photoId || 'ph_' + entry.id;
+      try { await savePhoto(entry.photoId, await dataURLToBlob(photo)); } catch { entry.photoId = null; }
+    }
+    catches.push(entry); newC++;
+  }
+  catches.sort((a, b) => b.ts - a.ts);
+  store.set('catches', catches);
+  return { newC, newWp, from: data.from };
+}
+
+// Share all trip data as a JSON file.
+async function exportTrip() {
+  toast('Packing trip file…');
+  const data = await packTrip();
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const file = new File([blob], `tightlines-trip-${new Date().toISOString().slice(0, 10)}.json`, { type: 'application/json' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: 'TightLines trip data' }); return; } catch { /* fall through */ }
@@ -186,7 +239,23 @@ async function exportTrip() {
   a.href = URL.createObjectURL(blob);
   a.download = file.name;
   a.click();
-  toast('Trip data exported');
+  toast('Trip file saved');
+}
+
+// Import a trip file from another phone and merge it (no duplicates).
+function importTrip(redraw) {
+  const input = h('input', { type: 'file', accept: '.json,application/json,text/plain' });
+  input.onchange = async () => {
+    const f = input.files[0];
+    if (!f) return;
+    let data;
+    try { data = JSON.parse(await f.text()); } catch { toast('That file is not readable'); return; }
+    const res = await mergeTrip(data);
+    if (!res) { toast('Not a TightLines trip file'); return; }
+    toast(res.newC || res.newWp ? `🤝 Merged ${res.newC} catches, ${res.newWp} waypoints${res.from ? ` from ${res.from}` : ''}` : 'Nothing new in that file');
+    redraw();
+  };
+  input.click();
 }
 
 export default {
@@ -205,7 +274,8 @@ export default {
     const chips = h('div', { class: 'chips' },
       h('div', { class: 'chip' + (tab === 'catches' ? ' active' : ''), onclick: () => { tab = 'catches'; redraw(); } }, '🐟 Catches'),
       h('div', { class: 'chip' + (tab === 'derby' ? ' active' : ''), onclick: () => { tab = 'derby'; redraw(); } }, '🏆 Derby'),
-      store.get('catches', []).length ? h('div', { class: 'chip', onclick: exportTrip }, '⬇ Export') : null);
+      store.get('catches', []).length ? h('div', { class: 'chip', onclick: exportTrip }, '⬆ Share') : null,
+      h('div', { class: 'chip', onclick: () => importTrip(redraw) }, '⬇ Merge'));
     root.append(
       h('div', { class: 'spread' }, chips,
         h('button', { class: 'btn small', onclick: () => openCatchForm(redraw) }, '+ Log catch')));

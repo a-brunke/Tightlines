@@ -50,6 +50,62 @@ async function downloadOffline(btn) {
   store.set('offlineMap', Date.now());
 }
 
+// ---------- depth finder ----------
+// Estimates depth at a point by finding which contour rings contain it and
+// interpolating between that contour and the next deeper one by distance.
+let bathyRings = null;   // [{ level (m, positive), coords: [[lng,lat],...] }]
+let lakeRings = null;    // { outer: [...], holes: [[...], ...] }
+
+function toXY(lng, lat, lat0) {
+  return [lng * 111320 * Math.cos(lat0 * Math.PI / 180), lat * 110540];
+}
+function pointInRing(p, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (((yi > p[1]) !== (yj > p[1])) && (p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function distToRing(p, ring, lat0) {
+  const [px, py] = toXY(p[0], p[1], lat0);
+  let best = Infinity;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [ax, ay] = toXY(ring[j][0], ring[j][1], lat0);
+    const [bx, by] = toXY(ring[i][0], ring[i][1], lat0);
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) : 0;
+    const ex = ax + t * dx - px, ey = ay + t * dy - py;
+    best = Math.min(best, ex * ex + ey * ey);
+  }
+  return Math.sqrt(best);
+}
+
+export function estimateDepth(lat, lng) {
+  if (!lakeRings) return null;
+  const p = [lng, lat];
+  if (!pointInRing(p, lakeRings.outer) || lakeRings.holes.some(hh => pointInRing(p, hh))) {
+    return { land: true };
+  }
+  if (!bathyRings || !bathyRings.length) return null;
+  const levels = [...new Set(bathyRings.map(r => r.level))].sort((a, b) => a - b);
+  let L = 0;
+  for (const r of bathyRings) {
+    if (r.level > L && pointInRing(p, r.coords)) L = r.level;
+  }
+  const deeper = levels.filter(v => v > L);
+  const ft = m => m * 3.28084;
+  if (!deeper.length) return { ft: Math.round(ft(L)), plus: true };
+  const U = deeper[0];
+  const nearL = L === 0
+    ? Math.min(distToRing(p, lakeRings.outer, lat), ...lakeRings.holes.map(hh => distToRing(p, hh, lat)))
+    : Math.min(...bathyRings.filter(r => r.level === L).map(r => distToRing(p, r.coords, lat)));
+  const nearU = Math.min(...bathyRings.filter(r => r.level === U).map(r => distToRing(p, r.coords, lat)));
+  const est = L + (U - L) * (nearL / (nearL + nearU || 1));
+  return { ft: Math.round(ft(est)), lo: Math.round(ft(L)), hi: Math.round(ft(U)) };
+}
+
 // Depth (m, negative) → styling + label
 function depthStyle(dm) {
   const ft = Math.round(Math.abs(dm) * 3.28084);
@@ -58,8 +114,6 @@ function depthStyle(dm) {
   return { ft, color: `rgb(40, ${shade * 0.75 + 40}, ${shade + 55})`, weight: ft > 90 ? 2.5 : 1.8 };
 }
 
-let lastCenter = null;
-
 export default {
   id: 'map',
   render(root) {
@@ -67,9 +121,14 @@ export default {
     const fabLocate = h('button', { class: 'fab', title: 'My location' }, '📍');
     const fabPin = h('button', { class: 'fab', title: 'Drop waypoint at crosshair' }, '📌');
     const fabSave = h('button', { class: 'fab', title: 'Save map offline' }, '💾');
+    const depthChip = h('div', {
+      class: 'depth-chip',
+      onclick: () => toast('Estimated from MNRF survey contours at the crosshair. Fish by it, don’t navigate by it!'),
+    }, '📏 …');
     const wrap = h('div', { class: 'map-wrap' },
       mapDiv,
       h('div', { class: 'map-crosshair' }, '✛'),
+      depthChip,
       h('div', { class: 'map-fabs' }, fabLocate, fabPin, fabSave));
     const wpList = h('div', { class: 'card' });
     const facts = h('div', { class: 'card' },
@@ -93,7 +152,7 @@ export default {
       wpList,
       facts);
 
-    const start = lastCenter || store.get('mapView') || { lat: KAGAWONG.lat, lng: KAGAWONG.lng, z: 12 };
+    const start = store.get('mapView') || { lat: KAGAWONG.lat, lng: KAGAWONG.lng, z: 12 };
     const map = L.map(mapDiv, { zoomControl: false }).setView([start.lat, start.lng], start.z || 12);
     L.tileLayer(TILE_URL, {
       className: 'basetiles', maxZoom: 18,
@@ -101,17 +160,44 @@ export default {
     }).addTo(map);
     map.on('moveend', () => {
       const c = map.getCenter();
-      lastCenter = { lat: c.lat, lng: c.lng, z: map.getZoom() };
-      store.set('mapView', lastCenter);
+      store.set('mapView', { lat: c.lat, lng: c.lng, z: map.getZoom() });
     });
+
+    // live depth-under-crosshair readout
+    let depthPending = false;
+    function updateDepthChip() {
+      const c = map.getCenter();
+      const d = estimateDepth(c.lat, c.lng);
+      if (!d) { depthChip.textContent = '📏 …'; return; }
+      if (d.land) depthChip.textContent = '🏝 land';
+      else if (d.plus) depthChip.textContent = `📏 ${d.ft}+ ft`;
+      else depthChip.textContent = `📏 ~${d.ft} ft`;
+    }
+    map.on('move', () => {
+      if (depthPending) return;
+      depthPending = true;
+      requestAnimationFrame(() => { depthPending = false; updateDepthChip(); });
+    });
+    updateDepthChip();
 
     // --- bathymetry + shoreline overlays (best-effort) ---
     fetch('data/kagawong-lake.geojson').then(r => r.ok ? r.json() : null).then(gj => {
       if (!gj) return;
+      const poly = (gj.features ? gj.features[0] : gj).geometry;
+      const rings = poly.type === 'Polygon' ? poly.coordinates : poly.coordinates[0];
+      lakeRings = { outer: rings[0], holes: rings.slice(1) };
+      updateDepthChip();
       L.geoJSON(gj, { style: { color: '#3ecfb2', weight: 1.5, fill: false, opacity: 0.7 } }).addTo(map);
     }).catch(() => {});
     fetch('data/kagawong-bathymetry.geojson').then(r => r.ok ? r.json() : null).then(gj => {
       if (!gj) return;
+      bathyRings = [];
+      for (const f of gj.features) {
+        const level = Math.abs(f.properties.DEPTH ?? f.properties.depth ?? 0);
+        const lines = f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        for (const coords of lines) bathyRings.push({ level, coords });
+      }
+      updateDepthChip();
       L.geoJSON(gj, {
         style: f => {
           const s = depthStyle(f.properties.DEPTH ?? f.properties.depth ?? 0);
