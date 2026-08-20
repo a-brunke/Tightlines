@@ -1,5 +1,5 @@
 // TightLines service worker: precache app shell, cache-first with tile runtime cache.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'tiles-v1';
 
@@ -29,6 +29,7 @@ const ASSETS = [
   './vendor/leaflet/leaflet.js',
   './vendor/leaflet/leaflet.css',
   './vendor/suncalc.js',
+  './vendor/qrcode.js',
   './data/kagawong-lake.geojson',
   './data/kagawong-bathymetry.geojson',
   ...[

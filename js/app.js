@@ -3,12 +3,19 @@ import today from './screens/today.js';
 import fish from './screens/fish.js';
 import learn from './screens/learn.js';
 import map from './screens/map.js';
-import log from './screens/log.js';
+import log, { handleMergeLink } from './screens/log.js';
 
 const screens = { today, fish, map, log, learn };
 
 function route() {
-  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  let parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  // scanned QR link: #/merge/<data> — land on the log screen, then confirm the merge
+  if (parts[0] === 'merge' && parts[1]) {
+    const data = parts[1];
+    history.replaceState(null, '', '#/log');
+    parts = ['log'];
+    setTimeout(() => handleMergeLink(data), 250);
+  }
   const id = screens[parts[0]] ? parts[0] : 'today';
   document.querySelectorAll('#tabbar a').forEach(a =>
     a.classList.toggle('active', a.dataset.tab === id));

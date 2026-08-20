@@ -213,7 +213,16 @@ export async function mergeTrip(data) {
   const cIds = new Set(catches.map(c => c.id));
   let newC = 0;
   for (const c of data.catches) {
-    if (!c || !c.id || cIds.has(c.id)) continue;
+    if (!c || !c.id) continue;
+    if (cIds.has(c.id)) {
+      // known catch (e.g. merged earlier via QR): attach its photo if we lack one
+      const existing = catches.find(x => x.id === c.id);
+      if (c.photo && existing && !existing.photoId) {
+        existing.photoId = 'ph_' + existing.id;
+        try { await savePhoto(existing.photoId, await dataURLToBlob(c.photo)); } catch { existing.photoId = null; }
+      }
+      continue;
+    }
     const { photo, ...entry } = c;
     if (photo) {
       entry.photoId = entry.photoId || 'ph_' + entry.id;
@@ -240,6 +249,100 @@ async function exportTrip() {
   a.download = file.name;
   a.click();
   toast('Trip file saved');
+}
+
+// ---- QR catch sharing ----
+// A QR holds ~3 KB, so photos can't travel this way; catches pack as compact
+// tuples, deflate-compressed into the app URL's hash fragment.
+const B64URL = {
+  enc(bytes) {
+    let s = '';
+    bytes.forEach(b => { s += String.fromCharCode(b); });
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  },
+  dec(str) {
+    const s = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(s, c => c.charCodeAt(0));
+  },
+};
+async function deflate(text) {
+  const cs = new CompressionStream('deflate-raw');
+  const ab = await new Response(new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(cs)).arrayBuffer();
+  return new Uint8Array(ab);
+}
+async function inflate(bytes) {
+  const ds = new DecompressionStream('deflate-raw');
+  const ab = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+  return new TextDecoder().decode(ab);
+}
+
+// Catch tuple: [id, ts, anglerIdx, speciesId, len, girth, lb, lure, lat, lng]
+export async function packQRUrl() {
+  const all = store.get('catches', []);
+  if (!all.length) return null;
+  const base = `${location.origin}${location.pathname}#/merge/`;
+  for (let n = all.length; n >= 1; n--) {
+    const subset = all.slice(0, n); // newest first
+    const anglers = [...new Set(subset.map(c => c.angler))];
+    const tuples = subset.map(c => [
+      c.id, c.ts, anglers.indexOf(c.angler), c.speciesId, c.len, c.girth, c.lb,
+      (c.lure || '').slice(0, 40),
+      c.lat != null ? +(+c.lat).toFixed(5) : null,
+      c.lng != null ? +(+c.lng).toFixed(5) : null,
+    ]);
+    const json = JSON.stringify({ v: 1, from: anglers[0] || '', a: anglers, c: tuples });
+    const b64 = B64URL.enc(await deflate(json));
+    if (b64.length <= 2200) return { url: base + b64, count: n, skipped: all.length - n };
+  }
+  return null;
+}
+
+export async function openQRSheet() {
+  if (!('CompressionStream' in window)) { toast('QR sharing needs a newer browser'); return; }
+  const packed = await packQRUrl();
+  if (!packed) { toast('No catches to share yet'); return; }
+  const qr = qrcode(0, 'L');
+  qr.addData(packed.url, 'Byte');
+  qr.make();
+  const svg = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+  sheet(
+    h('h2', {}, '🔳 Scan to grab my catches'),
+    h('p', { class: 'muted mt0' },
+      `${packed.count} catches packed in${packed.skipped ? ` (newest first, ${packed.skipped} older didn't fit — use ⬆ Share for the full history)` : ''}.`),
+    h('div', { style: 'background:#fff;border-radius:14px;padding:16px;max-width:330px;margin:0 auto', html: svg }),
+    h('p', { class: 'faint center', style: 'margin-top:10px' },
+      'Other phone: open the camera, point, tap the link — the app asks before merging. No signal needed if they have the app installed. Photos travel via ⬆ Share instead.'));
+}
+
+// Opened via a scanned #/merge/<data> link: decode, confirm, merge.
+export async function handleMergeLink(b64) {
+  let payload;
+  try { payload = JSON.parse(await inflate(B64URL.dec(b64))); } catch { toast('Could not read that QR code'); return; }
+  if (payload.v !== 1 || !Array.isArray(payload.c)) { toast('Not a TightLines QR'); return; }
+  const catches = payload.c.map(t => {
+    const [id, ts, ai, speciesId, len, girth, lb, lure, lat, lng] = t;
+    return {
+      id, ts, angler: payload.a[ai] || 'angler', speciesId,
+      speciesName: speciesName(speciesId), len, girth, lb,
+      lbTxt: lb != null ? fmtWeight(lb) : '', lure: lure || '', notes: '',
+      lat, lng, photoId: null,
+    };
+  });
+  const s = sheet(
+    h('h2', {}, '🤝 Merge scanned catches?'),
+    h('p', { class: 'muted mt0' },
+      `${catches.length} catches${payload.from ? ` from ${payload.from}’s phone` : ''}. Only new ones are added. Photos don’t travel by QR — grab those with ⬆ Share / ⬇ Merge.`),
+    h('button', {
+      class: 'btn block', onclick: async () => {
+        const res = await mergeTrip({ app: 'TightLines', version: 2, from: payload.from, anglers: payload.a, catches, waypoints: [] });
+        s.close();
+        toast(res && res.newC ? `🤝 Added ${res.newC} new catches to the derby` : 'Nothing new — already merged');
+        location.hash = '#/log';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      },
+    }, 'Merge into my leaderboard'),
+    h('div', { style: 'height:8px' }),
+    h('button', { class: 'btn secondary block', onclick: () => s.close() }, 'Cancel'));
 }
 
 // Import a trip file from another phone and merge it (no duplicates).
@@ -275,6 +378,7 @@ export default {
       h('div', { class: 'chip' + (tab === 'catches' ? ' active' : ''), onclick: () => { tab = 'catches'; redraw(); } }, '🐟 Catches'),
       h('div', { class: 'chip' + (tab === 'derby' ? ' active' : ''), onclick: () => { tab = 'derby'; redraw(); } }, '🏆 Derby'),
       store.get('catches', []).length ? h('div', { class: 'chip', onclick: exportTrip }, '⬆ Share') : null,
+      store.get('catches', []).length ? h('div', { class: 'chip', onclick: openQRSheet }, '🔳 QR') : null,
       h('div', { class: 'chip', onclick: () => importTrip(redraw) }, '⬇ Merge'));
     root.append(
       h('div', { class: 'spread' }, chips,
