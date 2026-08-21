@@ -387,6 +387,22 @@ table.lb tr:last-child td { border-bottom: none; }
 @keyframes slideup { from { transform: translateY(40px); opacity: 0.6; } to { transform: none; opacity: 1; } }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 
+/* ---------- iOS install banner ---------- */
+.ios-banner {
+  position: fixed; left: 10px; right: 10px; bottom: calc(70px + var(--sab)); z-index: 1100;
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 12px 14px; font-size: 13.5px; line-height: 1.45; box-shadow: var(--shadow);
+}
+.ios-banner button {
+  flex: none; background: none; border: none; color: var(--text-faint);
+  font-size: 16px; cursor: pointer; padding: 2px 4px;
+}
+.ios-share-glyph {
+  display: inline-block; transform: rotate(-90deg); color: var(--info); font-weight: 800;
+}
+
 /* ---------- toast ---------- */
 #toast-host { position: fixed; bottom: calc(76px + var(--sab)); left: 0; right: 0; z-index: 1200; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
 .toast {

@@ -1,5 +1,5 @@
 // TightLines service worker: precache app shell, cache-first with tile runtime cache.
-const VERSION = 'v10';
+const VERSION = 'v11';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'tiles-v1';
 

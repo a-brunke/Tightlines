@@ -87,6 +87,25 @@ installBtn.addEventListener('click', async () => {
   installBtn.classList.add('hidden');
 });
 
+// ---- iOS install helper ----
+// iOS never fires an install prompt for web apps; show Apple users the
+// hidden path (Safari → Share → Add to Home Screen) until installed.
+(() => {
+  const ua = navigator.userAgent;
+  const isIOS = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+  const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (!isIOS || installed || store.get('iosBannerDismissed')) return;
+  const banner = document.createElement('div');
+  banner.className = 'ios-banner';
+  banner.innerHTML =
+    '<div><b>📲 Put TightLines on your iPhone</b><br>' +
+    'Open this page in <b>Safari</b>, tap the <b>Share</b> button <span class="ios-share-glyph">⎋</span>, ' +
+    'then <b>“Add to Home Screen”</b>. It becomes a real app icon and works offline on the lake.</div>' +
+    '<button aria-label="Dismiss">✕</button>';
+  banner.querySelector('button').onclick = () => { store.set('iosBannerDismissed', true); banner.remove(); };
+  document.body.appendChild(banner);
+})();
+
 // ---- service worker ----
 if ('serviceWorker' in navigator) {
   const hadController = !!navigator.serviceWorker.controller;
