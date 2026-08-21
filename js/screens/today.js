@@ -1,39 +1,11 @@
-// Today: solunar + live weather + the Kagawong Cup leaderboard + quick tools.
-import { h, svgEl, fmtTime, fmtDate, sheet, toast } from '../ui.js';
-import { solunarDay, moonSVG, KAGAWONG } from '../solunar.js';
+// Today: weather-first dashboard + the Kagawong Cup leaderboard + quick tools.
+import { h, fmtTime, fmtDate, sheet, toast } from '../ui.js';
+import { solunarDay, KAGAWONG } from '../solunar.js';
 import { openEstimator, openWizard, fmtWeight } from '../tools.js';
 import { getWeather, wmo, windDir, pressureTrend, nowIndex } from '../weather.js';
 import { FISH } from '../data/fish.js';
 import { REGS } from '../data/regs.js';
-import { store } from '../store.js';
-
-let dayOffset = 0;
-
-function timelineEl(sol, dayStart) {
-  const DAY = 24 * 3600 * 1000;
-  const pct = t => Math.max(0, Math.min(100, ((t - dayStart) / DAY) * 100));
-  const tl = h('div', { class: 'timeline' });
-  tl.appendChild(h('div', { class: 'tl-axis' }));
-  // night shading before sunrise / after sunset
-  if (sol.sun.sunrise) tl.appendChild(h('div', { class: 'tl-night', style: `left:0%;width:${pct(+sol.sun.sunrise)}%` }));
-  if (sol.sun.sunset) tl.appendChild(h('div', { class: 'tl-night', style: `left:${pct(+sol.sun.sunset)}%;width:${100 - pct(+sol.sun.sunset)}%` }));
-  for (const [wins, cls] of [[sol.majors, 'major'], [sol.minors, 'minor']]) {
-    for (const w of wins) {
-      const l = pct(w.start), r = pct(w.end);
-      tl.appendChild(h('div', { class: `tl-window ${cls}`, style: `left:${l}%;width:${Math.max(1.5, r - l)}%` }));
-      tl.appendChild(h('div', { class: `tl-toplabel ${cls}`, style: `left:${(l + r) / 2}%` }, fmtTime(w.peak)));
-    }
-  }
-  for (const hh of [0, 6, 12, 18, 24]) {
-    tl.appendChild(h('div', { class: 'tl-label', style: `left:${(hh / 24) * 100}%` },
-      hh === 0 || hh === 24 ? '12a' : hh === 12 ? '12p' : hh < 12 ? `${hh}a` : `${hh - 12}p`));
-  }
-  const now = Date.now();
-  if (now >= dayStart && now < dayStart + DAY) {
-    tl.appendChild(h('div', { class: 'tl-now', style: `left:${pct(now)}%` }));
-  }
-  return tl;
-}
+import { store, getPhoto } from '../store.js';
 
 function openRegs() {
   // de-duplicate species that share a combined-limit entry (bass, sunfish, salmon)
@@ -197,14 +169,27 @@ function weatherStrip() {
 }
 
 // ---------- Kagawong Cup leaderboard ----------
+// Sample catches that showcase the Cup until the first real fish is logged.
+const DEMO_CATCHES = [
+  { demo: true, angler: 'Demo Dave', speciesName: 'Walleye', lb: 5.8, lbTxt: '5.8 lb', len: 25, photoUrl: 'data/fish-img/walleye.jpg', ts: Date.now() - 3 * 3600e3 },
+  { demo: true, angler: 'Sample Sam', speciesName: 'Northern Pike', lb: 12.2, lbTxt: '12 lb', len: 35, photoUrl: 'data/fish-img/northern-pike.jpg', ts: Date.now() - 2 * 3600e3 },
+  { demo: true, angler: 'Practice Pat', speciesName: 'Smallmouth Bass', lb: 3.9, lbTxt: '3.9 lb', len: 18.5, photoUrl: 'data/fish-img/smallmouth-bass.jpg', ts: Date.now() - 1 * 3600e3 },
+];
+
+function catchPhotoEl(c, cls) {
+  const box = h('div', { class: cls }, '🐟');
+  const setImg = src => { box.innerHTML = ''; box.appendChild(h('img', { src, alt: '' })); };
+  if (c.photoUrl) setImg(c.photoUrl);
+  else if (c.photoId) getPhoto(c.photoId).then(b => { if (b) setImg(URL.createObjectURL(b)); });
+  return box;
+}
+
 function derbyCard() {
-  const catches = store.get('catches', []);
-  const open = () => { location.hash = '#/log/derby'; };
-  if (!catches.length) {
-    return h('div', { class: 'card', style: 'cursor:pointer', onclick: open },
-      h('h2', {}, '🏆 The Kagawong Cup'),
-      h('p', { class: 'muted mt0' }, 'The trip leaderboard lives here. Log your catches, scan the crew’s 🔳 QR codes, and watch the standings brawl begin.'));
-  }
+  let catches = store.get('catches', []);
+  const isDemo = !catches.length;
+  if (isDemo) catches = DEMO_CATCHES;
+  const open = () => { if (!isDemo) location.hash = '#/log/derby'; else location.hash = '#/log'; };
+
   const byAngler = {};
   for (const c of catches) {
     const a = byAngler[c.angler] ??= { name: c.angler, n: 0, big: null };
@@ -213,15 +198,29 @@ function derbyCard() {
   }
   const biggest = [...catches].filter(c => c.lb != null).sort((x, y) => y.lb - x.lb).slice(0, 3);
   const standings = Object.values(byAngler).sort((x, y) => (y.big?.lb ?? 0) - (x.big?.lb ?? 0));
+
+  // fish of the day: today's biggest
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+  const fod = catches.filter(c => c.ts >= +dayStart && c.lb != null).sort((x, y) => y.lb - x.lb)[0];
+
   return h('div', { class: 'card', style: 'cursor:pointer', onclick: open },
     h('div', { class: 'spread' },
       h('h2', { class: 'mb0' }, '🏆 The Kagawong Cup'),
-      h('span', { class: 'faint' }, `${catches.length} fish · full standings ›`)),
+      h('span', { class: 'faint' }, isDemo ? 'sample preview' : `${catches.length} fish · standings ›`)),
+    isDemo ? h('p', { class: 'faint', style: 'margin:6px 0 0' },
+      'Sample catches so you can see how the Cup works — they disappear the moment the first real fish is logged.') : null,
+    fod ? h('div', { class: 'fod', onclick: e => e.stopPropagation() },
+      catchPhotoEl(fod, 'fod-photo'),
+      h('div', {},
+        h('div', { class: 'faint', style: 'font-size:11px;letter-spacing:0.5px' }, '🌟 FISH OF THE DAY'),
+        h('div', { style: 'font-weight:800' }, `${fod.angler}’s ${fod.lbTxt || fmtWeight(fod.lb)} ${fod.speciesName}`),
+        h('div', { class: 'faint' }, `${fod.len ? fod.len + '" · ' : ''}${fmtTime(fod.ts)}`))) : null,
     biggest.length ? h('div', { class: 'podium', style: 'margin-top:10px' },
       [1, 0, 2].map(rank => {
         const c = biggest[rank];
         if (!c) return h('div');
         return h('div', { class: 'pod' + (rank === 0 ? ' first' : '') },
+          catchPhotoEl(c, 'pod-photo'),
           h('div', { class: 'pod-medal' }, ['🥇', '🥈', '🥉'][rank]),
           h('div', { class: 'pod-name' }, c.angler),
           h('div', { class: 'pod-stat' }, c.speciesName),
@@ -232,39 +231,22 @@ function derbyCard() {
         `${a.name} · ${a.n}🐟${a.big ? ' · best ' + (a.big.lbTxt || fmtWeight(a.big.lb)) : ''}`))));
 }
 
+let weekOpen = false;
+
 export default {
   id: 'today',
   render(root) {
-    const rerender = () => { root.innerHTML = ''; this.render(root); };
     const home = store.get('home', KAGAWONG);
-    const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-    dayStart.setDate(dayStart.getDate() + dayOffset);
-    const sol = solunarDay(dayStart, home.lat, home.lng);
+    const sol = solunarDay(new Date(), home.lat, home.lng);
 
     const hero = h('div', { class: 'hero-today' },
-      h('div', { class: 'spread' },
-        h('button', { class: 'icon-btn', onclick: () => { dayOffset--; rerender(); } }, '‹'),
-        h('div', { class: 'center' },
-          h('div', { style: 'font-weight:800;font-size:17px' }, dayOffset === 0 ? 'Today' : fmtDate(dayStart)),
-          h('div', { class: 'faint' }, `${home.name} · ${fmtDate(dayStart)}`)),
-        h('button', { class: 'icon-btn', onclick: () => { dayOffset++; rerender(); } }, '›')),
-      h('div', { class: 'moon-row', style: 'margin-top:10px' },
-        svgEl(moonSVG(sol.moon.phase), '0 0 64 64', 'moon-svg'),
-        h('div', {},
-          h('div', { style: 'font-weight:800' }, sol.moon.name),
-          h('div', { class: 'muted' }, `${Math.round(sol.moon.fraction * 100)}% lit`),
-          h('div', { class: 'rating-stars' }, '★'.repeat(sol.rating) + '☆'.repeat(4 - sol.rating),
-            h('span', { style: 'font-size:13px;color:var(--text-dim);margin-left:8px' }, `${sol.ratingLabel} day`)))),
-      timelineEl(sol, +dayStart),
-      h('div', { class: 'legend' },
-        h('span', {}, h('i', { style: 'background:var(--gold)' }), 'Major feed (2 h)'),
-        h('span', {}, h('i', { style: 'background:var(--accent)' }), 'Minor feed (1 h)'),
-        h('span', {}, h('i', { style: 'background:rgba(90,169,230,0.4)' }), 'Night')),
-      h('div', { class: 'sun-times' },
-        h('span', {}, `🌅 ${sol.sun.sunrise ? fmtTime(sol.sun.sunrise) : '—'}`),
-        h('span', {}, `🌇 ${sol.sun.sunset ? fmtTime(sol.sun.sunset) : '—'}`),
-        h('span', {}, `🌙 ${sol.moon.rise ? '↑' + fmtTime(sol.moon.rise) : ''} ${sol.moon.set ? '↓' + fmtTime(sol.moon.set) : ''}`)),
+      h('div', { class: 'center' },
+        h('div', { style: 'font-weight:800;font-size:18px' }, 'Today on the lake'),
+        h('div', { class: 'faint' }, `${home.name} · ${fmtDate(Date.now())}`)),
       weatherStrip(),
+      h('div', { class: 'sun-times', style: 'justify-content:center' },
+        h('span', {}, `🌅 First light bite: ${sol.sun.sunrise ? fmtTime(sol.sun.sunrise) : '—'}`),
+        h('span', {}, `🌇 Evening bite: ${sol.sun.sunset ? fmtTime(sol.sun.sunset) : '—'}`)),
     );
 
     const tools = h('div', { class: 'card' },
@@ -284,15 +266,23 @@ export default {
           h('div', { class: 'wo-sub' }, 'photo + GPS pin'))),
     );
 
-    // What's biting this week — featured species august notes
+    // What's biting this week — collapsed by default, expands on tap
     const featured = ['walleye', 'smallmouth-bass', 'northern-pike', 'yellow-perch']
       .map(id => FISH.find(f => f.id === id)).filter(Boolean);
-    const biting = h('div', { class: 'card' },
-      h('h2', {}, '📅 This week on the water'),
-      featured.length === 0 ? h('p', { class: 'muted' }, 'Species guide loading…') :
-        featured.map(f => h('div', { class: 'now-flag', style: 'cursor:pointer', onclick: () => { location.hash = `#/fish/${f.id}`; } },
-          h('b', {}, f.name + ': '), f.augustNotes ? f.augustNotes.split('. ').slice(0, 2).join('. ') + '.' : '')),
+    const weekBody = h('div', { class: weekOpen ? '' : 'hidden' },
+      featured.map(f => h('div', { class: 'now-flag', style: 'cursor:pointer', onclick: () => { location.hash = `#/fish/${f.id}`; } },
+        h('b', {}, f.name + ': '), f.augustNotes ? f.augustNotes.split('. ').slice(0, 2).join('. ') + '.' : '')),
       h('p', { class: 'faint' }, 'Late-August patterns for Ontario waters. Tap a species for the full playbook.'));
+    const weekCaret = h('span', { class: 'row-arrow', style: 'font-size:15px' }, weekOpen ? '▾' : '▸');
+    const biting = h('div', { class: 'card' },
+      h('div', { class: 'spread', style: 'cursor:pointer', onclick: () => {
+        weekOpen = !weekOpen;
+        weekBody.classList.toggle('hidden', !weekOpen);
+        weekCaret.textContent = weekOpen ? '▾' : '▸';
+      } },
+        h('h2', { class: 'mb0' }, '📅 This week on the water'),
+        weekCaret),
+      weekBody);
 
     root.append(hero, derbyCard(), tools, biting);
   },

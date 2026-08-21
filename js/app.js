@@ -3,7 +3,9 @@ import today from './screens/today.js';
 import fish from './screens/fish.js';
 import learn from './screens/learn.js';
 import map from './screens/map.js';
-import log, { handleMergeLink } from './screens/log.js';
+import log, { handleMergeLink, mergeTrip } from './screens/log.js';
+import { store } from './store.js';
+import { toast } from './ui.js';
 
 const screens = { today, fish, map, log, learn };
 
@@ -32,6 +34,25 @@ function route() {
 window.addEventListener('hashchange', route);
 if (!location.hash) history.replaceState(null, '', '#/today');
 route();
+
+// ---- shared trip feed ----
+// The site can host data/shared-trip.json (merged by the trip commissioner).
+// Every phone pulls and merges it automatically when online — no scanning.
+(async () => {
+  try {
+    const res = await fetch('data/shared-trip.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || data.app !== 'TightLines') return;
+    if (store.get('feedStamp') === data.exported) return;
+    const r = await mergeTrip(data);
+    store.set('feedStamp', data.exported);
+    if (r && (r.newC || r.newWp)) {
+      toast(`🌐 Trip feed: +${r.newC} catches from the crew`);
+      route();
+    }
+  } catch { /* offline or no feed yet */ }
+})();
 
 // ---- theme ----
 const themeBtn = document.getElementById('btn-theme');

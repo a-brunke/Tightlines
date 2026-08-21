@@ -1,5 +1,5 @@
 // TightLines service worker: precache app shell, cache-first with tile runtime cache.
-const VERSION = 'v8';
+const VERSION = 'v9';
 const SHELL = `shell-${VERSION}`;
 const TILES = 'tiles-v1';
 
@@ -79,6 +79,20 @@ self.addEventListener('fetch', e => {
         return res;
       } catch {
         return new Response('', { status: 404 });
+      }
+    })());
+    return;
+  }
+
+  // the shared trip feed changes server-side: network-first, cache fallback
+  if (url.pathname.endsWith('/data/shared-trip.json')) {
+    e.respondWith((async () => {
+      try {
+        const res = await fetch(e.request);
+        if (res.ok) (await caches.open(SHELL)).put(e.request, res.clone());
+        return res;
+      } catch {
+        return (await caches.match(e.request, { ignoreSearch: true })) || new Response('null', { status: 404 });
       }
     })());
     return;

@@ -213,7 +213,11 @@ export default {
       for (const r of sorted) {
         const ft = Math.round(r.level * 3.28084);
         const band = BAND[Math.min(levels.indexOf(r.level) + 1, BAND.length - 1)];
-        const latlngs = r.coords.map(c => [c[1], c[0]]);
+        // punch out any island that sits inside this contour, or the fill paints over it
+        const latlngs = [r.coords.map(c => [c[1], c[0]])];
+        for (const hole of lakeRings.holes) {
+          if (pointInRing(hole[0], r.coords)) latlngs.push(hole.map(c => [c[1], c[0]]));
+        }
         L.polygon(latlngs, {
           color: '#1b4d77', weight: 1, opacity: 0.8,
           fillColor: band, fillOpacity: 0.6, interactive: true,

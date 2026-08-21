@@ -102,6 +102,16 @@ p { margin: 0.4em 0; }
 .tabbar a .tab-ico { font-size: 20px; line-height: 1.1; filter: grayscale(1) opacity(0.6); }
 .tabbar a.active { color: var(--accent); }
 .tabbar a.active .tab-ico { filter: none; }
+/* emphasized centre Log tab: raised trophy button */
+.tabbar a.tab-big .tab-ico {
+  font-size: 26px; width: 54px; height: 54px; margin-top: -22px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border: 2px solid var(--line); border-radius: 50%;
+  box-shadow: var(--shadow); filter: none;
+}
+.tabbar a.tab-big { font-weight: 800; }
+.tabbar a.tab-big.active .tab-ico { border-color: var(--accent); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 22%, var(--panel2)), var(--panel)); }
 
 /* ---------- screen & cards ---------- */
 .screen { padding: 14px 14px 20px; max-width: 760px; margin: 0 auto; }
@@ -293,6 +303,22 @@ ul.ticks li::before { content: "»"; position: absolute; left: 6px; color: var(-
   font-size: 30px; overflow: hidden;
 }
 .catch-photo img { width: 100%; height: 100%; object-fit: cover; }
+.fod {
+  display: flex; gap: 12px; align-items: center; margin-top: 10px;
+  background: linear-gradient(90deg, rgba(240, 182, 74, 0.13), transparent);
+  border-left: 3px solid var(--gold); border-radius: 8px; padding: 8px 10px; cursor: default;
+}
+.fod-photo {
+  width: 62px; height: 62px; border-radius: 10px; overflow: hidden; background: var(--bg2);
+  flex: none; display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.fod-photo img { width: 100%; height: 100%; object-fit: cover; }
+.pod-photo {
+  width: 100%; height: 62px; border-radius: 8px; overflow: hidden; background: var(--bg2);
+  margin-bottom: 5px; display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+.pod-photo img { width: 100%; height: 100%; object-fit: cover; }
+
 .podium { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; align-items: end; }
 .podium .pod {
   text-align: center; border-radius: var(--radius-sm); padding: 10px 6px;

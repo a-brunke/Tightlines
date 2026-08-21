@@ -161,8 +161,8 @@ function derbyView(host) {
       h('div', { class: 'row-main' }, h('div', { class: 'row-title' }, 'Most species'), h('div', { class: 'row-sub' }, `${diverse.name} · ${diverse.species.size} species`)))));
 
   host.appendChild(h('div', { class: 'now-flag' },
-    h('b', {}, '🚤 Two boats? '),
-    'Tap ⬆ Share on one phone, send the file with Quick Share (works with no signal), then ⬇ Merge on the other. Catches and photos combine into one leaderboard, no duplicates.'));
+    h('b', {}, '🚤 Getting everyone on one leaderboard: '),
+    'boat-to-boat, ⬆ Share the file over Quick Share and ⬇ Merge on the other phone (no signal needed). Or send your ⬆ Share file to the trip commissioner — the app pulls the published trip feed automatically whenever it’s online, photos and all.'));
 
   host.appendChild(h('div', { class: 'card' },
     h('h2', {}, '📊 Standings'),
