@@ -4,6 +4,7 @@ import { store, uid, savePhoto, getPhoto, delPhoto, shrinkImage, blobToDataURL, 
 import { FISH } from '../data/fish.js';
 import { estimateWeight, fmtWeight } from '../tools.js';
 import { openMeasure } from '../measure.js';
+import { openLightbox } from '../lightbox.js';
 
 let tab = 'catches';
 
@@ -141,7 +142,16 @@ function catchDetail(c, redraw) {
   const del = h('button', { class: 'btn danger' }, 'Delete catch');
   const s = sheet(
     h('div', { style: 'display:flex;justify-content:center' },
-      (() => { const b = photoBox(c); b.style.width = '100%'; b.style.height = '220px'; b.style.fontSize = '60px'; return b; })()),
+      (() => {
+        const b = photoBox(c);
+        b.style.width = '100%'; b.style.height = '220px'; b.style.fontSize = '60px';
+        b.style.cursor = 'zoom-in';
+        b.addEventListener('click', () => {
+          const im = b.querySelector('img');
+          if (im) openLightbox(im.src, c.speciesName);
+        });
+        return b;
+      })()),
     h('h2', { style: 'margin-top:10px' }, `${c.speciesName}`),
     h('p', { class: 'muted mt0' }, `${c.angler} · ${fmtDate(c.ts)} ${fmtTime(c.ts)}`),
     h('div', { class: 'statgrid' },

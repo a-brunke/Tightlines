@@ -4,11 +4,13 @@ import { FISH } from '../data/fish.js';
 import { silhouette } from '../data/silhouettes.js';
 import { regsFor, REGS } from '../data/regs.js';
 import { openEstimator } from '../tools.js';
+import { openLightbox } from '../lightbox.js';
 
 let query = '';
 
 // Species art: generated illustration with silhouette fallback.
-function fishArt(f, cls) {
+// fullView: tapping opens the fullscreen zoomable viewer.
+function fishArt(f, cls, fullView = false) {
   const wrap = h('div', { class: cls });
   const img = h('img', { src: `data/fish-img/${f.id}.jpg`, alt: f.name, loading: 'lazy' });
   img.addEventListener('error', () => {
@@ -17,6 +19,14 @@ function fishArt(f, cls) {
     sil.style.color = f.accent;
     wrap.appendChild(sil);
   });
+  if (fullView) {
+    wrap.style.cursor = 'zoom-in';
+    wrap.addEventListener('click', e => {
+      if (!img.naturalWidth) return;
+      e.stopPropagation();
+      openLightbox(img.src, f.name);
+    });
+  }
   wrap.appendChild(img);
   return wrap;
 }
@@ -71,7 +81,7 @@ function detailView(root, f) {
   root.append(
     backBtn('#/fish', 'All species'),
     h('div', { class: 'fish-hero', style: `background:linear-gradient(170deg, color-mix(in srgb, ${f.accent} 14%, var(--panel)), var(--panel))` },
-      fishArt(f, 'hero-art'),
+      fishArt(f, 'hero-art', true),
       h('h1', {}, f.name),
       h('div', { class: 'sci' }, f.sci),
       h('div', { class: 'tagline' },

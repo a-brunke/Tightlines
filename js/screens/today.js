@@ -6,6 +6,7 @@ import { getWeather, wmo, windDir, pressureTrend, nowIndex } from '../weather.js
 import { FISH } from '../data/fish.js';
 import { REGS } from '../data/regs.js';
 import { store, getPhoto } from '../store.js';
+import { openLightbox } from '../lightbox.js';
 
 function openRegs() {
   // de-duplicate species that share a combined-limit entry (bass, sunfish, salmon)
@@ -177,10 +178,16 @@ const DEMO_CATCHES = [
 ];
 
 function catchPhotoEl(c, cls) {
-  const box = h('div', { class: cls }, '🐟');
+  const box = h('div', { class: cls, style: 'cursor:zoom-in' }, '🐟');
   const setImg = src => { box.innerHTML = ''; box.appendChild(h('img', { src, alt: '' })); };
   if (c.photoUrl) setImg(c.photoUrl);
   else if (c.photoId) getPhoto(c.photoId).then(b => { if (b) setImg(URL.createObjectURL(b)); });
+  box.addEventListener('click', e => {
+    const im = box.querySelector('img');
+    if (!im) return;
+    e.stopPropagation();
+    openLightbox(im.src, c.speciesName || '');
+  });
   return box;
 }
 
