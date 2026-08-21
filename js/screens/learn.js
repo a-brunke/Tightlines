@@ -87,6 +87,18 @@ function hub(root) {
   );
 }
 
+// Add a background-coloured casing under every rope strand: where a strand
+// crosses another, the casing visually breaks the strand beneath it, giving
+// the proper over/under look of a real knot book.
+function caseRopes(svg) {
+  for (const el of [...svg.querySelectorAll('.rope, .rope-tag, .rope-b')]) {
+    const casing = el.cloneNode(false);
+    casing.setAttribute('class', 'rope-casing');
+    el.parentNode.insertBefore(casing, el);
+  }
+  return svg;
+}
+
 function knotView(root, k) {
   let step = 0;
   const stage = h('div', { class: 'knot-stage' });
@@ -97,7 +109,7 @@ function knotView(root, k) {
 
   const draw = () => {
     stage.innerHTML = ''; dots.innerHTML = '';
-    stage.appendChild(svgEl(k.steps[step].svg, '0 0 320 200'));
+    stage.appendChild(caseRopes(svgEl(k.steps[step].svg, '0 0 320 200')));
     caption.textContent = `${step + 1}. ${k.steps[step].caption}`;
     k.steps.forEach((_, i) => dots.appendChild(h('span', { class: i === step ? 'on' : '' })));
     prev.disabled = step === 0;
@@ -128,7 +140,7 @@ function rigView(root, r) {
       h('h2', {}, `🧷 ${r.name} `, levelBadge(r.level)),
       h('p', { class: 'muted mt0' }, 'For: ' + r.targets),
       h('p', {}, r.overview),
-      h('div', { class: 'knot-stage' }, svgEl(r.svg, '0 0 320 200')),
+      h('div', { class: 'knot-stage' }, caseRopes(svgEl(r.svg, '0 0 320 200'))),
       h('h3', {}, 'Build it (top to bottom)'),
       h('ul', { class: 'ticks' }, r.components.map(c => h('li', {}, c))),
       h('h3', {}, 'Fish it'),

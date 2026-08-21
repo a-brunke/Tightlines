@@ -72,7 +72,7 @@ export async function dataURLToBlob(url) {
 }
 
 // Resize an image File to a JPEG blob (max edge px) so storage stays small.
-export function shrinkImage(file, maxEdge = 1000, quality = 0.82) {
+export function shrinkImage(file, maxEdge = 1600, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();

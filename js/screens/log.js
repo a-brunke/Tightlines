@@ -33,7 +33,25 @@ export function openCatchForm(onSaved) {
   const girIn = h('input', { type: 'number', inputmode: 'decimal', placeholder: 'optional' });
   const lureIn = h('input', { type: 'text', placeholder: 'e.g. gold #4 spinner' });
   const notesIn = h('textarea', { placeholder: 'depth, structure, the story…' });
-  const photoIn = h('input', { type: 'file', accept: 'image/*', capture: 'environment' });
+  // camera-first photo flow: hidden inputs, one tap opens the camera directly
+  const photoIn = h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'hidden' });
+  const galleryIn = h('input', { type: 'file', accept: 'image/*', class: 'hidden' });
+  let photoFile = null;
+  const photoPreview = h('div', { class: 'photo-preview hidden' });
+  const camBtn = h('button', { type: 'button', class: 'btn', style: 'flex:1' }, '📸 Take photo');
+  const galBtn = h('button', { type: 'button', class: 'btn secondary', style: 'flex:none' }, '🖼');
+  camBtn.onclick = () => photoIn.click();
+  galBtn.onclick = () => galleryIn.click();
+  function setPhoto(file) {
+    if (!file) return;
+    photoFile = file;
+    photoPreview.classList.remove('hidden');
+    photoPreview.innerHTML = '';
+    photoPreview.append(
+      h('img', { src: URL.createObjectURL(file), alt: '' }),
+      h('span', { class: 'faint' }, '✓ attached — tap 📸 to retake'));
+    camBtn.textContent = '📸 Retake';
+  }
   const wOut = h('div', { class: 'muted center', style: 'padding:4px 0 8px' }, '');
   const updW = () => {
     const est = estimateWeight(specSel.value, parseFloat(lenIn.value), parseFloat(girIn.value) || 0);
@@ -43,20 +61,24 @@ export function openCatchForm(onSaved) {
 
   // photo-measure: snap the fish beside a ruler, tap 4 points, length fills itself
   let pendingMeasure = false;
-  const doMeasure = () => openMeasure(photoIn.files[0], specSel.value, len => {
+  const doMeasure = () => openMeasure(photoFile, specSel.value, len => {
     lenIn.value = len.toFixed(1);
     lenIn.dispatchEvent(new Event('input'));
     toast(`📏 ${len.toFixed(1)}" measured — photo attached to the catch`);
   });
   const measureBtn = h('button', {
     class: 'btn secondary small', type: 'button', style: 'margin:-4px 0 10px', onclick: () => {
-      if (photoIn.files[0]) doMeasure();
+      if (photoFile) doMeasure();
       else { pendingMeasure = true; photoIn.click(); }
     },
   }, '📏 Photo measure (fish beside a ruler)');
-  photoIn.addEventListener('change', () => {
-    if (pendingMeasure && photoIn.files[0]) { pendingMeasure = false; doMeasure(); }
-  });
+  for (const input of [photoIn, galleryIn]) {
+    input.addEventListener('change', () => {
+      if (!input.files[0]) return;
+      setPhoto(input.files[0]);
+      if (pendingMeasure) { pendingMeasure = false; doMeasure(); }
+    });
+  }
 
   const saveBtn = h('button', { class: 'btn block' }, '🐟 Save catch');
   const s = sheet(
@@ -70,7 +92,9 @@ export function openCatchForm(onSaved) {
     measureBtn,
     wOut,
     h('div', { class: 'field' }, h('label', {}, 'Caught on'), lureIn),
-    h('div', { class: 'field' }, h('label', {}, 'Photo'), photoIn),
+    h('div', { class: 'field' }, h('label', {}, 'Photo'),
+      h('div', { style: 'display:flex;gap:8px' }, camBtn, galBtn),
+      photoPreview, photoIn, galleryIn),
     h('div', { class: 'field' }, h('label', {}, 'Notes'), notesIn),
     saveBtn);
 
@@ -92,9 +116,9 @@ export function openCatchForm(onSaved) {
       lat: gps.lat, lng: gps.lng, photoId: null,
     };
     try {
-      if (photoIn.files[0]) {
+      if (photoFile) {
         c.photoId = 'ph_' + c.id;
-        await savePhoto(c.photoId, await shrinkImage(photoIn.files[0]));
+        await savePhoto(c.photoId, await shrinkImage(photoFile));
       }
     } catch { c.photoId = null; toast('Photo could not be saved (catch still logged)'); }
     store.set('catches', [c, ...store.get('catches', [])]);

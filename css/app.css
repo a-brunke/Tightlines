@@ -237,6 +237,7 @@ ul.ticks li::before { content: "»"; position: absolute; left: 6px; color: var(-
   padding: 6px; margin: 10px 0 6px;
 }
 .knot-stage svg { width: 100%; height: auto; display: block; }
+.knot-stage .rope-casing { stroke: var(--panel2); stroke-width: 10; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .knot-stage .rope { stroke: var(--rope); stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .knot-stage .rope-tag { stroke: var(--rope-tag); stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .knot-stage .rope-b { stroke: var(--rope-b); stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -293,6 +294,14 @@ ul.ticks li::before { content: "»"; position: absolute; left: 6px; color: var(-
 .field textarea { min-height: 64px; resize: vertical; }
 .field-row { display: flex; gap: 10px; }
 .field-row .field { flex: 1; }
+
+.photo-preview {
+  display: flex; align-items: center; gap: 10px; margin-top: 8px;
+}
+.photo-preview img {
+  width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-sm);
+  border: 2px solid var(--accent);
+}
 
 .measure-canvas {
   width: 100%; display: block; border-radius: 12px; border: 1px solid var(--line);
