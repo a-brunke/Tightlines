@@ -5,6 +5,7 @@ import { FISH } from '../data/fish.js';
 import { estimateWeight, fmtWeight } from '../tools.js';
 import { openMeasure } from '../measure.js';
 import { openLightbox } from '../lightbox.js';
+import { TRIP_INBOX_URL } from '../config.js';
 
 let tab = 'catches';
 
@@ -288,11 +289,33 @@ export async function mergeTrip(data) {
   return { newC, newWp, from: data.from };
 }
 
-// Share all trip data as a JSON file.
+// Share trip data: upload straight to the commissioner's Drive inbox when
+// configured and online, otherwise hand the file to the share sheet.
 async function exportTrip() {
   toast('Packing trip file…');
   const data = await packTrip();
-  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const json = JSON.stringify(data);
+
+  if (TRIP_INBOX_URL && navigator.onLine) {
+    try {
+      toast('⬆ Uploading to trip HQ…');
+      const res = await fetch(TRIP_INBOX_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: json,
+      });
+      const out = await res.json();
+      if (out && out.ok) {
+        toast('✅ Uploaded! It joins everyone’s leaderboard at the next trip sync.');
+        return;
+      }
+      throw new Error(out && out.error);
+    } catch {
+      toast('Upload didn’t go through — sharing the file instead');
+    }
+  }
+
+  const blob = new Blob([json], { type: 'application/json' });
   const file = new File([blob], `tightlines-trip-${new Date().toISOString().slice(0, 10)}.json`, { type: 'application/json' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: 'TightLines trip data' }); return; } catch { /* fall through */ }
