@@ -294,6 +294,11 @@ ul.ticks li::before { content: "»"; position: absolute; left: 6px; color: var(-
 .field-row { display: flex; gap: 10px; }
 .field-row .field { flex: 1; }
 
+.measure-canvas {
+  width: 100%; display: block; border-radius: 12px; border: 1px solid var(--line);
+  cursor: crosshair; touch-action: manipulation; background: var(--bg2);
+}
+
 /* ---------- catch log ---------- */
 .catch-card { display: flex; gap: 12px; }
 .catch-photo {

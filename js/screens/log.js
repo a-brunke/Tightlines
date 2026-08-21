@@ -3,6 +3,7 @@ import { h, sheet, toast, fmtTime, fmtDate } from '../ui.js';
 import { store, uid, savePhoto, getPhoto, delPhoto, shrinkImage, blobToDataURL, dataURLToBlob } from '../store.js';
 import { FISH } from '../data/fish.js';
 import { estimateWeight, fmtWeight } from '../tools.js';
+import { openMeasure } from '../measure.js';
 
 let tab = 'catches';
 
@@ -40,6 +41,23 @@ export function openCatchForm(onSaved) {
   };
   [specSel, lenIn, girIn].forEach(el => el.addEventListener('input', updW));
 
+  // photo-measure: snap the fish beside a ruler, tap 4 points, length fills itself
+  let pendingMeasure = false;
+  const doMeasure = () => openMeasure(photoIn.files[0], specSel.value, len => {
+    lenIn.value = len.toFixed(1);
+    lenIn.dispatchEvent(new Event('input'));
+    toast(`📏 ${len.toFixed(1)}" measured — photo attached to the catch`);
+  });
+  const measureBtn = h('button', {
+    class: 'btn secondary small', type: 'button', style: 'margin:-4px 0 10px', onclick: () => {
+      if (photoIn.files[0]) doMeasure();
+      else { pendingMeasure = true; photoIn.click(); }
+    },
+  }, '📏 Photo measure (fish beside a ruler)');
+  photoIn.addEventListener('change', () => {
+    if (pendingMeasure && photoIn.files[0]) { pendingMeasure = false; doMeasure(); }
+  });
+
   const saveBtn = h('button', { class: 'btn block' }, '🐟 Save catch');
   const s = sheet(
     h('h2', {}, '🐟 Log a catch'),
@@ -49,6 +67,7 @@ export function openCatchForm(onSaved) {
     h('div', { class: 'field-row' },
       h('div', { class: 'field' }, h('label', {}, 'Length (in)'), lenIn),
       h('div', { class: 'field' }, h('label', {}, 'Girth (in)'), girIn)),
+    measureBtn,
     wOut,
     h('div', { class: 'field' }, h('label', {}, 'Caught on'), lureIn),
     h('div', { class: 'field' }, h('label', {}, 'Photo'), photoIn),
