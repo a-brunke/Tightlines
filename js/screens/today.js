@@ -197,18 +197,20 @@ function derbyCard() {
   if (isDemo) catches = DEMO_CATCHES;
   const open = () => { if (!isDemo) location.hash = '#/log/derby'; else location.hash = '#/log'; };
 
+  // Photoshop Phantom victims are barred from awards (see the derby)
+  const eligible = catches.filter(c => c.photoCheck?.verdict !== 'busted');
   const byAngler = {};
-  for (const c of catches) {
+  for (const c of eligible) {
     const a = byAngler[c.angler] ??= { name: c.angler, n: 0, big: null };
     a.n++;
     if (c.lb != null && (!a.big || c.lb > a.big.lb)) a.big = c;
   }
-  const biggest = [...catches].filter(c => c.lb != null).sort((x, y) => y.lb - x.lb).slice(0, 3);
+  const biggest = [...eligible].filter(c => c.lb != null).sort((x, y) => y.lb - x.lb).slice(0, 3);
   const standings = Object.values(byAngler).sort((x, y) => (y.big?.lb ?? 0) - (x.big?.lb ?? 0));
 
   // fish of the day: today's biggest
   const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-  const fod = catches.filter(c => c.ts >= +dayStart && c.lb != null).sort((x, y) => y.lb - x.lb)[0];
+  const fod = eligible.filter(c => c.ts >= +dayStart && c.lb != null).sort((x, y) => y.lb - x.lb)[0];
 
   return h('div', { class: 'card', style: 'cursor:pointer', onclick: open },
     h('div', { class: 'spread' },

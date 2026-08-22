@@ -6,6 +6,7 @@ import { estimateWeight, fmtWeight } from '../tools.js';
 import { openMeasure } from '../measure.js';
 import { openLightbox } from '../lightbox.js';
 import { TRIP_INBOX_URL } from '../config.js';
+import { analyzePhoto } from '../photocheck.js';
 
 let tab = 'catches';
 
@@ -39,6 +40,7 @@ export function openCatchForm(onSaved) {
   const photoIn = h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'hidden' });
   const galleryIn = h('input', { type: 'file', accept: 'image/*', class: 'hidden' });
   let photoFile = null;
+  let photoCheck = null; // silent Fish Polygraph verdict on the ORIGINAL file
   const photoPreview = h('div', { class: 'photo-preview hidden' });
   const camBtn = h('button', { type: 'button', class: 'btn', style: 'flex:1' }, '📸 Take photo');
   const galBtn = h('button', { type: 'button', class: 'btn secondary', style: 'flex:none' }, '🖼');
@@ -47,6 +49,8 @@ export function openCatchForm(onSaved) {
   function setPhoto(file) {
     if (!file) return;
     photoFile = file;
+    photoCheck = null;
+    analyzePhoto(file).then(r => { photoCheck = r; }); // no UI: the landmine stays buried
     photoPreview.classList.remove('hidden');
     photoPreview.innerHTML = '';
     photoPreview.append(
@@ -120,6 +124,7 @@ export function openCatchForm(onSaved) {
     try {
       if (photoFile) {
         c.photoId = 'ph_' + c.id;
+        c.photoCheck = photoCheck || await analyzePhoto(photoFile);
         await savePhoto(c.photoId, await shrinkImage(photoFile));
       }
     } catch { c.photoId = null; toast('Photo could not be saved (catch still logged)'); }
@@ -155,6 +160,12 @@ function catchDetail(c, redraw) {
       })()),
     h('h2', { style: 'margin-top:10px' }, `${c.speciesName}`),
     h('p', { class: 'muted mt0' }, `${c.angler} · ${fmtDate(c.ts)} ${fmtTime(c.ts)}`),
+    c.photoCheck ? h('p', {
+      class: c.photoCheck.verdict === 'busted' ? 'now-flag' : 'faint',
+      style: c.photoCheck.verdict === 'busted' ? 'border-left-color:var(--danger)' : '',
+    },
+      c.photoCheck.verdict === 'busted' ? '🤖 AI IMAGE DETECTED — ' : c.photoCheck.verdict === 'real' ? '📷 ' : '🤔 ',
+      (c.photoCheck.flags || []).join(' · ')) : null,
     h('div', { class: 'statgrid' },
       h('div', { class: 'stat' }, h('div', { class: 'stat-v' }, c.len ? `${c.len}"` : '—'), h('div', { class: 'stat-k' }, 'Length')),
       h('div', { class: 'stat' }, h('div', { class: 'stat-v' }, c.lbTxt || '—'), h('div', { class: 'stat-k' }, 'Est. weight')),
@@ -181,8 +192,12 @@ function derbyView(host) {
       h('p', { class: 'muted' }, 'Every logged catch counts. Biggest fish, most fish, most species — three ways to claim glory at the dinner table.')));
     return;
   }
+  // catches that failed the Fish Polygraph are barred from the awards
+  const busted = catches.filter(c => c.photoCheck?.verdict === 'busted');
+  const eligible = catches.filter(c => c.photoCheck?.verdict !== 'busted');
+
   const byAngler = {};
-  for (const c of catches) {
+  for (const c of eligible) {
     const a = byAngler[c.angler] ??= { name: c.angler, n: 0, species: new Set(), big: null };
     a.n++;
     a.species.add(c.speciesId);
@@ -190,7 +205,7 @@ function derbyView(host) {
     if (!a.big || w > bw || (w === bw && (c.len || 0) > (a.big.len || 0))) a.big = c;
   }
   const anglers = Object.values(byAngler);
-  const biggest = [...catches].filter(c => c.lb != null).sort((x, y) => y.lb - x.lb || (y.len || 0) - (x.len || 0)).slice(0, 3);
+  const biggest = [...eligible].filter(c => c.lb != null).sort((x, y) => y.lb - x.lb || (y.len || 0) - (x.len || 0)).slice(0, 3);
   const most = [...anglers].sort((x, y) => y.n - x.n)[0];
   const diverse = [...anglers].sort((x, y) => y.species.size - x.species.size)[0];
 
@@ -213,6 +228,18 @@ function derbyView(host) {
       h('div', { class: 'row-main' }, h('div', { class: 'row-title' }, 'Most fish'), h('div', { class: 'row-sub' }, `${most.name} · ${most.n} catches`))),
     h('div', { class: 'row', style: 'cursor:default' }, h('div', { style: 'font-size:22px' }, '🌈'),
       h('div', { class: 'row-main' }, h('div', { class: 'row-title' }, 'Most species'), h('div', { class: 'row-sub' }, `${diverse.name} · ${diverse.species.size} species`)))));
+
+  // 🏴‍☠️ the hidden award: appears only when someone steps on the landmine
+  if (busted.length) {
+    host.appendChild(h('div', { class: 'card', style: 'border-color:var(--danger)' },
+      h('h2', {}, '🏴‍☠️ The Photoshop Phantom Award'),
+      h('p', { class: 'muted mt0' }, 'A special honour, awarded automatically. Nobody asks for it. Somebody always earns it.'),
+      busted.map(c => h('div', { class: 'now-flag', style: 'border-left-color:var(--danger)' },
+        h('b', {}, `${c.angler}: `),
+        `this "${c.speciesName}" failed the Fish Polygraph — ${(c.photoCheck.flags || []).join('; ')}. `,
+        h('b', {}, 'The fish is fake. The shame is real. '),
+        'Disqualified from Biggest Fish. The lake keeps receipts.'))));
+  }
 
   host.appendChild(h('div', { class: 'now-flag' },
     h('b', {}, '🚤 Getting everyone on one leaderboard: '),
@@ -478,7 +505,9 @@ export default {
     catches.forEach(c => list.appendChild(h('div', { class: 'row', onclick: () => catchDetail(c, redraw) },
       photoBox(c),
       h('div', { class: 'row-main' },
-        h('div', { class: 'row-title' }, `${c.speciesName} `, c.lbTxt ? h('span', { class: 'badge l2' }, c.lbTxt) : null),
+        h('div', { class: 'row-title' }, `${c.speciesName} `,
+          c.lbTxt ? h('span', { class: 'badge l2' }, c.lbTxt) : null,
+          c.photoCheck?.verdict === 'busted' ? h('span', { class: 'badge l3', style: 'margin-left:4px' }, '🤖 busted') : null),
         h('div', { class: 'row-sub' }, `${c.angler} · ${c.len ? c.len + '" · ' : ''}${fmtDate(c.ts)} ${fmtTime(c.ts)}`),
         c.lure ? h('div', { class: 'row-sub' }, `🎣 ${c.lure}`) : null),
       h('div', { class: 'row-arrow' }, '›'))));
