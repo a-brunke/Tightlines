@@ -44,6 +44,11 @@ for (const f of files) {
   console.log(`merged ${f}`);
 }
 
+if (!added && !photos && fs.existsSync(FEED)) {
+  console.log('feed unchanged: nothing new in those files');
+  process.exit(0);
+}
+
 feed.anglers = [...anglers];
 feed.catches = [...cById.values()].sort((a, b) => b.ts - a.ts);
 feed.waypoints = [...wById.values()];
