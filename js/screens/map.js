@@ -271,12 +271,15 @@ export default {
     store.get('waypoints', []).forEach(addMarker);
     drawList();
 
-    // --- catch pins ---
+    // --- catch pins (DOM nodes, not HTML: merged trip files are untrusted text) ---
     for (const c of store.get('catches', [])) {
       if (c.lat == null) continue;
       L.marker([c.lat, c.lng], {
         icon: L.divIcon({ className: 'wp-emoji', html: '🐟', iconSize: [24, 24], iconAnchor: [12, 12] }),
-      }).addTo(map).bindPopup(`<b>🐟 ${c.speciesName || ''}</b><br>${c.angler || ''} · ${c.len ? c.len + '"' : ''} ${c.lbTxt || ''}<br><span style="font-size:11px">${new Date(c.ts).toLocaleString()}</span>`);
+      }).addTo(map).bindPopup(h('div', {},
+        h('b', {}, `🐟 ${c.speciesName || ''}`),
+        h('div', {}, `${c.angler || ''} · ${c.len ? c.len + '"' : ''} ${c.lbTxt || ''}`),
+        h('div', { style: 'font-size:11px;color:var(--text-faint)' }, new Date(c.ts).toLocaleString())));
     }
 
     // --- FABs ---
